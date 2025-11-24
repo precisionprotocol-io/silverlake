@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silverlake - Command-Line Task Manager</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%231a1d23'/><rect x='5' y='5' width='90' height='90' fill='%230d0f12' stroke='%230dcaf0' stroke-width='2'/><text x='20' y='45' font-family='monospace' font-size='30' fill='%230dcaf0'>%3E</text><rect x='40' y='28' width='15' height='3' fill='%2300ff88'/><rect x='40' y='36' width='25' height='3' fill='%23ffa502'/><rect x='40' y='44' width='35' height='3' fill='%230dcaf0'/><rect x='20' y='60' width='50' height='3' fill='%23555'/></svg>" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="terminal-container">
+        <!-- Header -->
+        <div class="terminal-header">
+            <span class="terminal-title">Silverlake</span>
+            <span class="terminal-subtitle">Local Task Management System</span>
+        </div>
+
+        <!-- Main display area -->
+        <div class="terminal-display" id="terminalDisplay">
+            <div id="taskTable"></div>
+        </div>
+
+        <!-- Command input area (hidden by default, vim-like) -->
+        <div class="terminal-input-area hidden" id="commandInputArea">
+            <div style="position: relative; flex: 1;">
+                <input
+                    type="text"
+                    id="commandInput"
+                    class="command-input"
+                    autocomplete="off"
+                    spellcheck="false"
+                />
+                <span id="commandPlaceholder" class="command-placeholder">Enter command (type :h for help)</span>
+            </div>
+        </div>
+
+        <!-- Shortcut reference footer -->
+        <div class="shortcut-footer">
+            <span class="shortcut">↑↓ Navigate</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">A Add</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">M Modify</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">D Delete</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">C Complete</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">! Critical</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">U Undo</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">R Redo</span>
+            <span class="shortcut-separator">|</span>
+            <span class="shortcut">: Commands</span>
+        </div>
+
+        <!-- Modal for interactive prompts -->
+        <div class="modal" id="modal">
+            <div class="modal-content">
+                <div class="modal-header" id="modalHeader">Input Required</div>
+                <div class="modal-body" id="modalBody"></div>
+                <div class="modal-footer">
+                    <button class="modal-btn modal-btn-cancel" id="modalCancel">Cancel (Esc)</button>
+                    <button class="modal-btn modal-btn-submit" id="modalSubmit">Submit (Enter)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="taskManager.js"></script>
+    <script src="commandParser.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

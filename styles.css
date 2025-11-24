@@ -1,0 +1,1146 @@
+/* Terminal Task Manager - Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* Background */
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #1a1a1a;
+    --bg-modal: #0f0f0f;
+
+    /* Text */
+    --text-primary: #e0e0e0;
+    --text-secondary: #a0a0a0;
+    --text-muted: #606060;
+
+    /* Status Colors */
+    --status-not-started: #6c757d;
+    --status-in-progress: #0dcaf0;
+    --status-blocked: #dc3545;
+    --status-completed: #198754;
+
+    /* Priority Colors */
+    --priority-low: #6c757d;
+    --priority-medium: #ffc107;
+    --priority-high: #fd7e14;
+    --priority-critical: #dc3545;
+
+    /* Borders */
+    --border-color: #333333;
+    --border-highlight: #555555;
+
+    /* Font */
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+body {
+    font-family: var(--font-mono);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    height: 100vh;
+    overflow: hidden;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.terminal-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 1800px;
+    margin: 0 auto;
+}
+
+/* Header */
+.terminal-header {
+    padding: 15px 20px;
+    border-bottom: 2px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.terminal-title {
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--status-in-progress);
+}
+
+.terminal-subtitle {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+/* Display Area */
+.terminal-display {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 20px;
+    background-color: var(--bg-primary);
+}
+
+/* Scrollbar Styling */
+.terminal-display::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.terminal-display::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+.terminal-display::-webkit-scrollbar-thumb {
+    background: var(--border-highlight);
+    border-radius: 5px;
+}
+
+.terminal-display::-webkit-scrollbar-thumb:hover {
+    background: #666666;
+}
+
+/* Task Table */
+.task-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.task-table th,
+.task-table td {
+    padding: 10px 15px;
+    text-align: left;
+    border: 1px solid var(--border-color);
+}
+
+.task-table th {
+    background-color: var(--bg-secondary);
+    font-weight: 700;
+    color: var(--status-in-progress);
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.task-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.task-table tbody tr:hover {
+    background-color: var(--bg-secondary);
+}
+
+.task-table tbody tr.selected {
+    background-color: rgba(13, 202, 240, 0.15);
+    border-left: 3px solid var(--status-in-progress);
+}
+
+.task-table tbody tr.overdue {
+    animation: glow 2s ease-in-out infinite;
+}
+
+/* Completed tasks styling */
+.task-table tbody tr.completed {
+    opacity: 0.6;
+    color: var(--text-muted);
+}
+
+.task-table tbody tr.completed td {
+    text-decoration: line-through;
+}
+
+.task-table tbody tr.completed:hover {
+    opacity: 0.8;
+}
+
+@keyframes glow {
+    0%, 100% {
+        background-color: var(--bg-primary);
+        box-shadow: 0 0 5px rgba(220, 53, 69, 0.3);
+    }
+    50% {
+        background-color: rgba(220, 53, 69, 0.1);
+        box-shadow: 0 0 15px rgba(220, 53, 69, 0.6);
+    }
+}
+
+/* Task Name with Hierarchy */
+.task-name {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.task-name.subtask {
+    padding-left: 20px;
+}
+
+.task-name.subtask::before {
+    content: "└─ ";
+    color: var(--text-muted);
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.status-not-started {
+    background-color: var(--status-not-started);
+    color: #ffffff;
+}
+
+.status-in-progress {
+    background-color: var(--status-in-progress);
+    color: #000000;
+}
+
+.status-blocked {
+    background-color: var(--status-blocked);
+    color: #ffffff;
+}
+
+.status-completed {
+    background-color: var(--status-completed);
+    color: #ffffff;
+}
+
+/* Priority Badge */
+.priority-badge {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: inline-block;
+}
+
+.priority-low {
+    color: var(--priority-low);
+    border: 1px solid var(--priority-low);
+}
+
+.priority-medium {
+    color: var(--priority-medium);
+    border: 1px solid var(--priority-medium);
+}
+
+.priority-high {
+    color: var(--priority-high);
+    border: 1px solid var(--priority-high);
+}
+
+.priority-critical {
+    color: var(--priority-critical);
+    border: 1px solid var(--priority-critical);
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* Due Date */
+.due-date {
+    color: var(--text-secondary);
+}
+
+.due-date.overdue {
+    color: var(--priority-critical);
+    font-weight: 700;
+}
+
+/* Notes Column */
+.notes-cell {
+    cursor: pointer;
+    color: var(--text-muted);
+}
+
+.notes-cell:hover {
+    color: var(--status-in-progress);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state-title {
+    font-size: 20px;
+    margin-bottom: 10px;
+    color: var(--text-secondary);
+}
+
+.empty-state-text {
+    font-size: 14px;
+}
+
+/* Command Input Area */
+.terminal-input-area {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    border-top: 2px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    transition: all 0.2s ease;
+}
+
+.terminal-input-area.hidden {
+    display: none;
+}
+
+.command-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    outline: none;
+    caret-color: var(--status-in-progress);
+    position: relative;
+    z-index: 2;
+}
+
+.command-placeholder {
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 1;
+    padding-left: 12px;
+}
+
+.command-placeholder.hidden {
+    display: none;
+}
+
+/* Shortcut Footer */
+.shortcut-footer {
+    padding: 10px 20px;
+    background-color: rgba(26, 26, 26, 0.8);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    flex-wrap: wrap;
+}
+
+.shortcut {
+    color: var(--text-secondary);
+}
+
+.shortcut-separator {
+    color: var(--text-muted);
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal.active {
+    display: flex;
+}
+
+.modal-content {
+    background-color: var(--bg-modal);
+    border: 2px solid var(--border-highlight);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.modal-header {
+    padding: 15px 20px;
+    background-color: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 700;
+    color: var(--status-in-progress);
+    font-size: 16px;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    background-color: var(--bg-secondary);
+    border-top: 2px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--border-highlight);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.modal-btn:hover {
+    background-color: var(--bg-secondary);
+    border-color: var(--status-in-progress);
+}
+
+.modal-btn-submit {
+    border-color: var(--status-completed);
+    color: var(--status-completed);
+}
+
+.modal-btn-submit:hover {
+    background-color: var(--status-completed);
+    color: #ffffff;
+}
+
+.modal-btn-cancel {
+    border-color: var(--status-blocked);
+    color: var(--status-blocked);
+}
+
+.modal-btn-cancel:hover {
+    background-color: var(--status-blocked);
+    color: #ffffff;
+}
+
+/* Form Fields */
+.form-field {
+    margin-bottom: 20px;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+    border-color: var(--status-in-progress);
+}
+
+.form-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 5px;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+/* Message Display */
+.message {
+    padding: 15px 20px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    border-left: 4px solid;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.message-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    border-color: var(--status-completed);
+    color: var(--status-completed);
+}
+
+.message-error {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: var(--status-blocked);
+    color: var(--status-blocked);
+}
+
+.message-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    border-color: var(--status-in-progress);
+    color: var(--status-in-progress);
+}
+
+/* Help Content */
+.help-section {
+    margin-bottom: 25px;
+}
+
+.help-title {
+    color: var(--status-in-progress);
+    font-weight: 700;
+    margin-bottom: 10px;
+    font-size: 15px;
+}
+
+.help-command {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.help-command-name {
+    color: var(--priority-medium);
+    font-weight: 700;
+}
+
+/* Status Dropdown */
+.status-dropdown {
+    background-color: var(--bg-modal);
+    border: 2px solid var(--border-highlight);
+    border-radius: 4px;
+    padding: 5px;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    min-width: 150px;
+}
+
+.status-dropdown-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.status-dropdown-option:hover {
+    background-color: var(--bg-secondary);
+}
+
+.status-dropdown-option.active {
+    background-color: rgba(13, 202, 240, 0.2);
+}
+
+.status-dropdown-option .status-badge {
+    display: block;
+    text-align: center;
+}
+
+/* Clickable status cell */
+.status-cell {
+    position: relative;
+}
+
+.status-cell:hover {
+    background-color: var(--bg-secondary);
+}
+
+/* Priority Dropdown */
+.priority-dropdown {
+    background-color: var(--bg-modal);
+    border: 2px solid var(--border-highlight);
+    border-radius: 4px;
+    padding: 5px;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    min-width: 150px;
+}
+
+.priority-dropdown-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.priority-dropdown-option:hover {
+    background-color: var(--bg-secondary);
+}
+
+.priority-dropdown-option.active {
+    background-color: rgba(255, 193, 7, 0.2);
+}
+
+.priority-dropdown-option .priority-badge {
+    display: block;
+    text-align: center;
+}
+
+/* Clickable priority cell */
+.priority-cell {
+    position: relative;
+}
+
+.priority-cell:hover {
+    background-color: var(--bg-secondary);
+}
+
+/* Notes Viewer */
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.note-item {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--status-in-progress);
+    border-radius: 4px;
+    padding: 12px 15px;
+}
+
+.note-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.note-timestamp {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.note-number {
+    color: var(--status-in-progress);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.note-content {
+    color: var(--text-primary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.note-link {
+    color: var(--status-in-progress);
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.note-link:hover {
+    color: var(--priority-medium);
+    text-decoration: none;
+}
+
+.note-link:visited {
+    color: #00a0c0;
+}
+
+/* Clickable notes cell */
+.notes-cell {
+    position: relative;
+}
+
+.notes-cell:hover {
+    background-color: var(--bg-secondary);
+    color: var(--status-in-progress);
+}
+
+/* Date Picker Popup */
+.date-picker-popup {
+    background-color: var(--bg-modal);
+    border: 2px solid var(--border-highlight);
+    border-radius: 6px;
+    z-index: 2000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+    min-width: 300px;
+}
+
+.date-picker-header {
+    padding: 12px 15px;
+    background-color: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 700;
+    color: var(--status-in-progress);
+    font-size: 14px;
+}
+
+.date-picker-body {
+    padding: 15px;
+}
+
+.date-picker-input {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.date-picker-input:focus {
+    border-color: var(--status-in-progress);
+}
+
+.date-picker-quick-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.date-quick-btn {
+    padding: 8px 12px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.date-quick-btn:hover {
+    background-color: var(--bg-primary);
+    border-color: var(--status-in-progress);
+    color: var(--status-in-progress);
+}
+
+.date-picker-footer {
+    padding: 12px 15px;
+    background-color: var(--bg-secondary);
+    border-top: 2px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.date-picker-cancel,
+.date-picker-save {
+    padding: 8px 16px;
+    border: 2px solid var(--border-highlight);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.date-picker-cancel {
+    border-color: var(--status-blocked);
+    color: var(--status-blocked);
+}
+
+.date-picker-cancel:hover {
+    background-color: var(--status-blocked);
+    color: #ffffff;
+}
+
+.date-picker-save {
+    border-color: var(--status-completed);
+    color: var(--status-completed);
+}
+
+.date-picker-save:hover {
+    background-color: var(--status-completed);
+    color: #ffffff;
+}
+
+/* Clickable due date cell */
+.due-date-cell {
+    position: relative;
+}
+
+.due-date-cell:hover {
+    background-color: var(--bg-secondary);
+}
+
+/* Form Date Button */
+.form-date-button {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.form-date-button:hover {
+    border-color: var(--status-in-progress);
+    background-color: var(--bg-secondary);
+}
+
+.form-date-button #dueDateDisplay {
+    color: var(--text-secondary);
+}
+
+/* Modal Calendar Popup */
+.modal-calendar-popup {
+    background-color: var(--bg-modal);
+    border: 2px solid var(--border-highlight);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.9);
+    min-width: 320px;
+}
+
+/* Calendar Styles */
+.calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background-color: var(--bg-secondary);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.calendar-title {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--status-in-progress);
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-size: 24px;
+    cursor: pointer;
+    padding: 5px 10px;
+    transition: color 0.2s;
+}
+
+.calendar-nav-btn:hover {
+    color: var(--status-in-progress);
+}
+
+.calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 10px;
+    background-color: var(--bg-secondary);
+}
+
+.calendar-weekday {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    padding: 5px;
+}
+
+.calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    padding: 10px;
+}
+
+.calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-primary);
+}
+
+.calendar-day:not(.empty):hover {
+    background-color: var(--bg-secondary);
+    color: var(--status-in-progress);
+}
+
+.calendar-day.empty {
+    cursor: default;
+}
+
+.calendar-day.today {
+    background-color: rgba(13, 202, 240, 0.2);
+    border: 1px solid var(--status-in-progress);
+    font-weight: 700;
+}
+
+.calendar-day.selected {
+    background-color: var(--status-in-progress);
+    color: #000000;
+    font-weight: 700;
+}
+
+.calendar-time-section {
+    padding: 15px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.calendar-time-label {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.calendar-time-input {
+    flex: 1;
+    padding: 8px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    border-radius: 4px;
+}
+
+.calendar-quick-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    padding: 0 15px 15px 15px;
+}
+
+.calendar-quick-btn {
+    padding: 8px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.calendar-quick-btn:hover {
+    border-color: var(--status-in-progress);
+    color: var(--status-in-progress);
+}
+
+.calendar-footer {
+    padding: 15px;
+    background-color: var(--bg-secondary);
+    border-top: 2px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.calendar-cancel-btn,
+.calendar-save-btn {
+    padding: 8px 16px;
+    border: 2px solid var(--border-highlight);
+    background-color: var(--bg-primary);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.calendar-cancel-btn {
+    border-color: var(--status-blocked);
+    color: var(--status-blocked);
+}
+
+.calendar-cancel-btn:hover {
+    background-color: var(--status-blocked);
+    color: #ffffff;
+}
+
+.calendar-save-btn {
+    border-color: var(--status-completed);
+    color: var(--status-completed);
+}
+
+.calendar-save-btn:hover {
+    background-color: var(--status-completed);
+    color: #ffffff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .terminal-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+
+    .task-table {
+        font-size: 12px;
+    }
+
+    .task-table th,
+    .task-table td {
+        padding: 8px 10px;
+    }
+
+    .shortcut-footer {
+        font-size: 10px;
+    }
+}
+
+/* Confirmation Dialog */
+.confirm-dialog {
+    text-align: center;
+}
+
+.confirm-dialog-text {
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.confirm-dialog-warning {
+    color: var(--priority-critical);
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.bulk-delete-list {
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 15px 0;
+    padding: 10px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.bulk-delete-item {
+    padding: 5px 0;
+    color: var(--text-primary);
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.bulk-delete-item:last-child {
+    border-bottom: none;
+}
+
+.confirm-dialog-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.confirm-option-btn {
+    padding: 10px;
+    background-color: var(--bg-secondary);
+    border: 2px solid var(--border-highlight);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.confirm-option-btn:hover {
+    border-color: var(--status-in-progress);
+    background-color: var(--bg-primary);
+}
+
+.confirm-option-btn:focus {
+    outline: none;
+    border-color: var(--status-in-progress);
+    background-color: var(--bg-primary);
+    box-shadow: 0 0 0 3px rgba(13, 202, 240, 0.3);
+}
+
+.confirm-option-btn.danger {
+    border-color: #ff4757;
+    color: #ff4757;
+}
+
+.confirm-option-btn.danger:hover,
+.confirm-option-btn.danger:focus {
+    background-color: rgba(255, 71, 87, 0.1);
+    border-color: #ff4757;
+}
+
+.confirm-option-btn.secondary {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+}
+
+.confirm-option-btn.secondary:hover,
+.confirm-option-btn.secondary:focus {
+    border-color: var(--border-highlight);
+    color: var(--text-primary);
+}
+
+.confirm-dialog-text.warning {
+    color: #ffa502;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
