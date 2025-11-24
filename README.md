@@ -170,7 +170,7 @@ Tested on:
 ## File Structure
 
 ```
-task_manager/
+silverlake/
 ├── index.html           # Main HTML file
 ├── styles.css           # Terminal styling
 ├── taskManager.js       # Data model and IndexedDB layer

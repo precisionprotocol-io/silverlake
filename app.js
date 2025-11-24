@@ -561,6 +561,7 @@ class TaskTerminalApp {
      */
     showHelp() {
         this.modalHeader.textContent = 'Command Reference';
+        this.modalBody.dataset.action = 'help';
 
         const helpHtml = `
             <div class="help-section">
@@ -691,10 +692,11 @@ class TaskTerminalApp {
 
         if (action === 'modify') {
             this.submitModifyTask();
-        } else if (action === 'delete' || action === 'bulk_delete' || action === 'view_notes') {
-            // Delete, bulk_delete, and view_notes use custom buttons, not form submission
+        } else if (action === 'delete' || action === 'bulk_delete' || action === 'view_notes' || action === 'help') {
+            // Delete, bulk_delete, view_notes, and help use custom buttons or no form
             return;
-        } else {
+        } else if (action === 'add' || !action) {
+            // Explicitly handle add action or default to add for backwards compatibility
             this.submitAddTask();
         }
     }
@@ -1967,7 +1969,7 @@ class TaskTerminalApp {
 
             // Create filename with timestamp
             const timestamp = new Date().toISOString().split('T')[0];
-            const filename = `taskterminal-backup-${timestamp}.json`;
+            const filename = `silverlake-backup-${timestamp}.json`;
 
             // Create download link
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
