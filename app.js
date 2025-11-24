@@ -233,6 +233,8 @@ class TaskTerminalApp {
                 this.showHelp();
             } else if (result.action === 'show_privacy') {
                 this.showPrivacy();
+            } else if (result.action === 'show_search') {
+                await this.showSearch();
             } else if (result.action === 'export_data') {
                 await this.exportData();
             } else if (result.action === 'export_csv') {
@@ -255,7 +257,7 @@ class TaskTerminalApp {
         }
 
         // Clear input and return to navigation mode for non-modal commands
-        const modalActions = ['prompt_add', 'prompt_modify', 'prompt_delete', 'prompt_bulk_delete', 'show_help', 'show_privacy'];
+        const modalActions = ['prompt_add', 'prompt_modify', 'prompt_delete', 'prompt_bulk_delete', 'show_help', 'show_privacy', 'show_search'];
         if (!modalActions.includes(result.action)) {
             this.exitCommandMode();
         } else {
@@ -586,6 +588,13 @@ class TaskTerminalApp {
             </div>
 
             <div class="help-section">
+                <div class="help-title">Search</div>
+                <div class="help-command">
+                    <span class="help-command-name">:query</span>, <span class="help-command-name">:search</span>, or <span class="help-command-name">:?</span> - Open search modal (search by name, ID, or project)
+                </div>
+            </div>
+
+            <div class="help-section">
                 <div class="help-title">Filtering</div>
                 <div class="help-command">
                     <span class="help-command-name">:Filter_ID=1</span> - Show single task
@@ -597,13 +606,28 @@ class TaskTerminalApp {
                     <span class="help-command-name">:Filter_ID=[1~10]</span> - Show range of tasks (inclusive)
                 </div>
                 <div class="help-command">
+                    <span class="help-command-name">:Filter_ID!=[1,2,5]</span> - Exclude specific tasks
+                </div>
+                <div class="help-command">
                     <span class="help-command-name">:Filter_Project="ProjectName"</span> - Filter by project (case-insensitive)
+                </div>
+                <div class="help-command">
+                    <span class="help-command-name">:Filter_Project!="Archive"</span> - Exclude project
                 </div>
                 <div class="help-command">
                     <span class="help-command-name">:Filter_Priority="High"</span> - Filter by priority
                 </div>
                 <div class="help-command">
+                    <span class="help-command-name">:Filter_Priority!="Low"</span> - Exclude priority
+                </div>
+                <div class="help-command">
                     <span class="help-command-name">:Filter_Status="In Progress"</span> - Filter by status
+                </div>
+                <div class="help-command">
+                    <span class="help-command-name">:Filter_Status!="Completed"</span> - Exclude status
+                </div>
+                <div class="help-command" style="margin-top: 10px; color: var(--text-muted); font-style: italic;">
+                    Note: When filtering subtasks, parent tasks are automatically included for context
                 </div>
             </div>
 
@@ -819,6 +843,148 @@ class TaskTerminalApp {
 
         // Hide submit button for privacy info
         this.modalSubmit.style.display = 'none';
+    }
+
+    /**
+     * Show search modal
+     */
+    async showSearch() {
+        this.modalHeader.textContent = 'Search Tasks';
+        this.modalBody.dataset.action = 'search';
+
+        const searchHtml = `
+            <div class="form-field">
+                <label class="form-label" for="searchInput">Search by name or ID</label>
+                <input
+                    type="text"
+                    id="searchInput"
+                    class="form-input"
+                    placeholder="Type to search..."
+                    autocomplete="off"
+                />
+                <span class="form-hint">Search supports partial name matching (case-insensitive) or exact ID</span>
+            </div>
+            <div id="searchResults" style="margin-top: 20px; max-height: 400px; overflow-y: auto;">
+                <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                    Start typing to search...
+                </div>
+            </div>
+        `;
+
+        this.modalBody.innerHTML = searchHtml;
+        this.showModal();
+
+        // Hide submit button for search
+        this.modalSubmit.style.display = 'none';
+
+        // Get all tasks for searching
+        const allTasks = await this.taskManager.getAllTasks();
+
+        // Set up real-time search
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+
+            if (query === '') {
+                searchResults.innerHTML = `
+                    <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                        Start typing to search...
+                    </div>
+                `;
+                return;
+            }
+
+            // Search by ID (exact match) or name (partial match, case-insensitive)
+            const queryLower = query.toLowerCase();
+            const queryId = parseInt(query);
+
+            const matches = allTasks.filter(task => {
+                // Check ID match
+                if (!isNaN(queryId) && task.id === queryId) {
+                    return true;
+                }
+
+                // Check name match (case-insensitive, partial)
+                if (task.name.toLowerCase().includes(queryLower)) {
+                    return true;
+                }
+
+                // Check project match
+                if (task.project && task.project.toLowerCase().includes(queryLower)) {
+                    return true;
+                }
+
+                return false;
+            });
+
+            if (matches.length === 0) {
+                searchResults.innerHTML = `
+                    <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                        No tasks found matching "${this.escapeHtml(query)}"
+                    </div>
+                `;
+                return;
+            }
+
+            // Display results
+            let resultsHtml = `
+                <div style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px;">
+                    Found ${matches.length} task${matches.length === 1 ? '' : 's'}
+                </div>
+            `;
+
+            matches.forEach(task => {
+                const statusClass = task.status.toLowerCase().replace(/\s+/g, '-');
+                const priorityClass = task.priority.toLowerCase();
+                const subtaskIndicator = task.parentTaskId ? '<span style="color: var(--text-muted); margin-right: 5px;">└─</span>' : '';
+
+                resultsHtml += `
+                    <div class="search-result-item" data-task-id="${task.id}" style="
+                        padding: 12px;
+                        margin-bottom: 8px;
+                        background-color: var(--bg-secondary);
+                        border: 1px solid var(--border-color);
+                        border-radius: 4px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.borderColor='var(--status-in-progress)'; this.style.backgroundColor='var(--bg-primary)';"
+                       onmouseout="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-secondary)';">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <span style="color: var(--text-muted); font-size: 12px;">#${task.id}</span>
+                            <span class="status-badge status-${statusClass}">${task.status}</span>
+                            <span class="priority-badge priority-${priorityClass}">${task.priority}</span>
+                        </div>
+                        <div style="font-size: 14px; margin-bottom: 5px;">
+                            ${subtaskIndicator}${this.escapeHtml(task.name)}
+                        </div>
+                        ${task.project ? `<div style="font-size: 12px; color: var(--text-secondary);">Project: ${this.escapeHtml(task.project)}</div>` : ''}
+                        ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary);">Due: ${this.formatDate(task.dueDate)}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            searchResults.innerHTML = resultsHtml;
+
+            // Add click handlers to results
+            document.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const taskId = parseInt(item.dataset.taskId);
+                    this.hideModal();
+
+                    // Apply filter to show the selected task
+                    this.currentFilters = {
+                        id: { value: taskId, negate: false }
+                    };
+                    await this.render();
+                    this.showMessage(`Showing task #${taskId}`, 'success');
+                });
+            });
+        });
+
+        // Focus the search input
+        setTimeout(() => searchInput.focus(), 100);
     }
 
     /**

@@ -39,17 +39,24 @@ No server, no installation, no dependencies!
 | `:A` or `:add` | Add a new task |
 | `:M [task_id]` | Modify existing task |
 | `:D [task_id]` | Delete task |
+| `:query`, `:search`, `:?` | Open search modal to find tasks by name, ID, or project |
 
 ### Filtering
+
+**Note**: When filtering by subtask criteria, parent tasks are automatically included for context.
 
 | Command | Example | Description |
 |---------|---------|-------------|
 | `:Filter_ID=1` | `:Filter_ID=5` | Show single task |
 | `:Filter_ID=[1,2,5]` | `:Filter_ID=[1,3,7]` | Show multiple specific tasks |
 | `:Filter_ID=[1~10]` | `:Filter_ID=[5~15]` | Show range of tasks |
+| `:Filter_ID!=[1,2,5]` | `:Filter_ID!=[1,3,7]` | Exclude specific tasks |
 | `:Filter_Project="Name"` | `:Filter_Project="Alpha"` | Filter by project name |
+| `:Filter_Project!="Name"` | `:Filter_Project!="Alpha"` | Exclude project |
 | `:Filter_Priority="High"` | `:Filter_Priority="Critical"` | Filter by priority |
+| `:Filter_Priority!="Low"` | `:Filter_Priority!="Medium"` | Exclude priority level |
 | `:Filter_Status="In Progress"` | `:Filter_Status="Completed"` | Filter by status |
+| `:Filter_Status!="Completed"` | `:Filter_Status!="Blocked"` | Exclude status |
 
 ### Sorting & Utility
 
@@ -227,7 +234,24 @@ Parent Task ID: 1
 :clear                          # Show all tasks again
 ```
 
-### Example 3: Using date shortcuts
+### Example 3: Search for tasks
+```
+:query                          # Open search modal
+# Type "login" to find tasks with "login" in name
+# Type "5" to find task #5
+# Type "WebDev" to find tasks in WebDev project
+# Click result to jump to that task
+```
+
+### Example 4: Using negation filters
+```
+:Filter_Status!="Completed"     # Show all tasks except completed ones
+:Filter_Priority!="Low"         # Show all tasks except low priority
+:Filter_Project!="Archive"      # Exclude archived project tasks
+:clear                          # Clear filters
+```
+
+### Example 5: Using date shortcuts
 ```
 :A
 Name: Daily Standup

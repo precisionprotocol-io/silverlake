@@ -471,38 +471,81 @@ class TaskManager {
     async filterTasks(filters) {
         const allTasks = await this.getAllTasks();
 
-        return allTasks.filter(task => {
+        // First, find all tasks that match the filter criteria
+        const matchedTasks = allTasks.filter(task => {
             // Filter by ID
             if (filters.id !== undefined) {
-                if (Array.isArray(filters.id)) {
-                    if (!filters.id.includes(task.id)) return false;
+                const filterValue = filters.id.value !== undefined ? filters.id.value : filters.id;
+                const negate = filters.id.negate || false;
+                let matches = false;
+
+                if (Array.isArray(filterValue)) {
+                    matches = filterValue.includes(task.id);
                 } else {
-                    if (task.id !== filters.id) return false;
+                    matches = task.id === filterValue;
                 }
+
+                if (negate ? matches : !matches) return false;
             }
 
             // Filter by project
             if (filters.project !== undefined) {
-                if (!task.project || task.project.toLowerCase() !== filters.project.toLowerCase()) {
-                    return false;
-                }
+                const filterValue = filters.project.value !== undefined ? filters.project.value : filters.project;
+                const negate = filters.project.negate || false;
+
+                const matches = task.project &&
+                    task.project.toLowerCase() === filterValue.toLowerCase();
+
+                if (negate ? matches : !matches) return false;
             }
 
             // Filter by priority
             if (filters.priority !== undefined) {
-                if (task.priority.toLowerCase() !== filters.priority.toLowerCase()) {
-                    return false;
-                }
+                const filterValue = filters.priority.value !== undefined ? filters.priority.value : filters.priority;
+                const negate = filters.priority.negate || false;
+
+                const matches = task.priority.toLowerCase() === filterValue.toLowerCase();
+
+                if (negate ? matches : !matches) return false;
             }
 
             // Filter by status
             if (filters.status !== undefined) {
-                if (task.status.toLowerCase() !== filters.status.toLowerCase()) {
-                    return false;
-                }
+                const filterValue = filters.status.value !== undefined ? filters.status.value : filters.status;
+                const negate = filters.status.negate || false;
+
+                const matches = task.status.toLowerCase() === filterValue.toLowerCase();
+
+                if (negate ? matches : !matches) return false;
             }
 
             return true;
+        });
+
+        // Now include parent tasks for any matched subtasks
+        const resultIds = new Set(matchedTasks.map(t => t.id));
+        const parentsToInclude = new Set();
+
+        for (const task of matchedTasks) {
+            if (task.parentTaskId && !resultIds.has(task.parentTaskId)) {
+                parentsToInclude.add(task.parentTaskId);
+            }
+        }
+
+        // Add parent tasks to the result
+        const finalTasks = [...matchedTasks];
+        for (const parentId of parentsToInclude) {
+            const parentTask = allTasks.find(t => t.id === parentId);
+            if (parentTask) {
+                finalTasks.push(parentTask);
+            }
+        }
+
+        // Sort to ensure parents come before children
+        return finalTasks.sort((a, b) => {
+            if (a.parentTaskId === b.id) return 1; // b is parent of a
+            if (b.parentTaskId === a.id) return -1; // a is parent of b
+            return a.id - b.id; // default: sort by ID
         });
     }
 

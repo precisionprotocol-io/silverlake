@@ -61,6 +61,8 @@ class CommandParser {
                 return await this.handleRestore(args);
             } else if (cmd === 'purge') {
                 return await this.handlePurge(args);
+            } else if (cmd === 'query' || cmd === 'search' || cmd === '?') {
+                return { success: true, action: 'show_search' };
             } else if (cmd === 'q' || cmd === 'quit') {
                 return { success: true, message: 'Silverlake is a web app - just close the tab to quit!' };
             } else {
@@ -285,51 +287,62 @@ class CommandParser {
 
         // Parse filter parameters
         // Format: Filter_ID=1 or Filter_Project="name" or Filter_Status="value"
+        // Supports negation: Filter_Status!="Completed"
 
         // ID filter - supports single, array, or range
-        const idMatch = commandString.match(/Filter_ID=(\[.*?\]|\d+)/i);
+        const idMatch = commandString.match(/Filter_ID(!=|=)(\[.*?\]|\d+)/i);
         if (idMatch) {
-            const idValue = idMatch[1];
+            const operator = idMatch[1];
+            const idValue = idMatch[2];
+            const negate = operator === '!=';
+
             if (idValue.startsWith('[')) {
                 // Array or range
                 const inner = idValue.slice(1, -1);
                 if (inner.includes('~')) {
                     // Range format: [1~10]
                     const [start, end] = inner.split('~').map(n => parseInt(n.trim()));
-                    filters.id = [];
+                    const ids = [];
                     for (let i = start; i <= end; i++) {
-                        filters.id.push(i);
+                        ids.push(i);
                     }
+                    filters.id = { value: ids, negate };
                 } else {
                     // Array format: [1,2,5]
-                    filters.id = inner.split(',').map(n => parseInt(n.trim()));
+                    filters.id = { value: inner.split(',').map(n => parseInt(n.trim())), negate };
                 }
             } else {
                 // Single ID
-                filters.id = parseInt(idValue);
+                filters.id = { value: parseInt(idValue), negate };
             }
         }
 
-        // Project filter
-        const projectMatch = commandString.match(/Filter_Project=["']?([^"'\s]+)["']?/i);
+        // Project filter - handles quoted and unquoted values
+        const projectMatch = commandString.match(/Filter_Project(!=|=)(["'])([^"']+)\2|Filter_Project(!=|=)([^\s]+)/i);
         if (projectMatch) {
-            filters.project = projectMatch[1];
+            const operator = projectMatch[1] || projectMatch[4];
+            const value = projectMatch[3] || projectMatch[5];
+            filters.project = { value, negate: operator === '!=' };
         }
 
-        // Priority filter
-        const priorityMatch = commandString.match(/Filter_Priority=["']?([^"'\s]+)["']?/i);
+        // Priority filter - handles quoted and unquoted values
+        const priorityMatch = commandString.match(/Filter_Priority(!=|=)(["'])([^"']+)\2|Filter_Priority(!=|=)([^\s]+)/i);
         if (priorityMatch) {
-            filters.priority = priorityMatch[1];
+            const operator = priorityMatch[1] || priorityMatch[4];
+            const value = priorityMatch[3] || priorityMatch[5];
+            filters.priority = { value, negate: operator === '!=' };
         }
 
-        // Status filter
-        const statusMatch = commandString.match(/Filter_Status=["']?([^"'\s]+)["']?/i);
+        // Status filter - handles quoted and unquoted values
+        const statusMatch = commandString.match(/Filter_Status(!=|=)(["'])([^"']+)\2|Filter_Status(!=|=)([^\s]+)/i);
         if (statusMatch) {
-            filters.status = this.expandStatus(statusMatch[1]);
+            const operator = statusMatch[1] || statusMatch[4];
+            const value = statusMatch[3] || statusMatch[5];
+            filters.status = { value: this.expandStatus(value), negate: operator === '!=' };
         }
 
         if (Object.keys(filters).length === 0) {
-            return { success: false, message: 'No valid filter parameters found. Example: :Filter_ID=1 or :Filter_Project="Alpha"' };
+            return { success: false, message: 'No valid filter parameters found. Example: :Filter_ID=1 or :Filter_Project="Alpha" or :Filter_Status!="Completed"' };
         }
 
         return {
