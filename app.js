@@ -880,11 +880,18 @@ class TaskTerminalApp {
         // Get all tasks for searching
         const allTasks = await this.taskManager.getAllTasks();
 
-        // Set up real-time search
-        const searchInput = document.getElementById('searchInput');
-        const searchResults = document.getElementById('searchResults');
+        // Wait for DOM to be ready (important for Edge browser)
+        setTimeout(() => {
+            // Set up real-time search
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
 
-        searchInput.addEventListener('input', (e) => {
+            if (!searchInput || !searchResults) {
+                console.error('Search elements not found');
+                return;
+            }
+
+            searchInput.addEventListener('input', (e) => {
             const query = e.target.value.trim();
 
             if (query === '') {
@@ -981,10 +988,11 @@ class TaskTerminalApp {
                     this.showMessage(`Showing task #${taskId}`, 'success');
                 });
             });
-        });
+            });
 
-        // Focus the search input
-        setTimeout(() => searchInput.focus(), 100);
+            // Focus the search input
+            searchInput.focus();
+        }, 50); // Small delay to ensure DOM is ready
     }
 
     /**
