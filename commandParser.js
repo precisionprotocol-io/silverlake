@@ -47,6 +47,8 @@ class CommandParser {
                 return { success: true, action: 'clear' };
             } else if (cmd === 'help' || cmd === 'h') {
                 return this.handleHelp();
+            } else if (cmd === 'privacy') {
+                return { success: true, action: 'show_privacy' };
             } else if (cmd === 'export') {
                 return { success: true, action: 'export_data' };
             } else if (cmd === 'csv') {

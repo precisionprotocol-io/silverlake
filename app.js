@@ -231,6 +231,8 @@ class TaskTerminalApp {
                 this.showMessage('Filters cleared, showing all tasks', 'info');
             } else if (result.action === 'show_help') {
                 this.showHelp();
+            } else if (result.action === 'show_privacy') {
+                this.showPrivacy();
             } else if (result.action === 'export_data') {
                 await this.exportData();
             } else if (result.action === 'export_csv') {
@@ -253,7 +255,7 @@ class TaskTerminalApp {
         }
 
         // Clear input and return to navigation mode for non-modal commands
-        const modalActions = ['prompt_add', 'prompt_modify', 'prompt_delete', 'prompt_bulk_delete', 'show_help'];
+        const modalActions = ['prompt_add', 'prompt_modify', 'prompt_delete', 'prompt_bulk_delete', 'show_help', 'show_privacy'];
         if (!modalActions.includes(result.action)) {
             this.exitCommandMode();
         } else {
@@ -651,6 +653,9 @@ class TaskTerminalApp {
                 <div class="help-command">
                     <span class="help-command-name">:help</span> or <span class="help-command-name">:h</span> - Show this help
                 </div>
+                <div class="help-command">
+                    <span class="help-command-name">:privacy</span> - Show privacy and security information
+                </div>
             </div>
 
             <div class="help-section">
@@ -685,6 +690,138 @@ class TaskTerminalApp {
     }
 
     /**
+     * Show privacy & security information
+     */
+    showPrivacy() {
+        this.modalHeader.textContent = 'Privacy & Security';
+        this.modalBody.dataset.action = 'privacy';
+
+        const privacyHtml = `
+            <div class="help-section">
+                <div class="help-title">100% Local, Zero Cloud Processing</div>
+                <div class="help-command">
+                    Silverlake runs entirely in your browser. Your task data never leaves your device.
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Data Storage</div>
+                <div class="help-command">
+                    <strong>Technology:</strong> IndexedDB (browser-native database)
+                </div>
+                <div class="help-command">
+                    <strong>Location:</strong> Stored locally on your computer
+                </div>
+                <div class="help-command">
+                    <strong>Capacity:</strong> 100MB+ (enough for hundreds of thousands of tasks)
+                </div>
+                <div class="help-command">
+                    <strong>Persistence:</strong> Data persists across browser sessions
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">No Server Communication</div>
+                <div class="help-command">
+                    • No backend servers
+                </div>
+                <div class="help-command">
+                    • No cloud sync
+                </div>
+                <div class="help-command">
+                    • No analytics or tracking
+                </div>
+                <div class="help-command">
+                    • No data collection
+                </div>
+                <div class="help-command">
+                    • No network requests (after initial page load)
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Data Control</div>
+                <div class="help-command">
+                    <strong>Export:</strong> Use <span class="help-command-name">:export</span> to backup data as JSON
+                </div>
+                <div class="help-command">
+                    <strong>Import:</strong> Use <span class="help-command-name">:import</span> to restore from backup
+                </div>
+                <div class="help-command">
+                    <strong>CSV Export:</strong> Use <span class="help-command-name">:csv</span> for spreadsheet export
+                </div>
+                <div class="help-command">
+                    <strong>Clear Data:</strong> Use browser settings to clear IndexedDB storage
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Browser Isolation</div>
+                <div class="help-command">
+                    • Each browser has separate storage (Chrome vs Firefox = different databases)
+                </div>
+                <div class="help-command">
+                    • Incognito/Private mode uses temporary storage (deleted when window closes)
+                </div>
+                <div class="help-command">
+                    • Data is sandboxed per domain (only accessible on this site)
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Security Architecture</div>
+                <div class="help-command">
+                    <strong>Client-Side Only:</strong> All processing happens in your browser
+                </div>
+                <div class="help-command">
+                    <strong>No Authentication:</strong> No login = no password risks
+                </div>
+                <div class="help-command">
+                    <strong>No Third-Party APIs:</strong> Zero external dependencies
+                </div>
+                <div class="help-command">
+                    <strong>Open Source:</strong> Code is publicly available on GitHub
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">What This Means</div>
+                <div class="help-command">
+                    ✓ Your tasks are completely private
+                </div>
+                <div class="help-command">
+                    ✓ No one can access your data (not even us)
+                </div>
+                <div class="help-command">
+                    ✓ Works offline after initial load
+                </div>
+                <div class="help-command">
+                    ✓ No subscription or account required
+                </div>
+                <div class="help-command">
+                    ✓ Zero hosting costs (static files only)
+                </div>
+                <div class="help-command">
+                    ✓ Enterprise-friendly (no data leaves corporate network)
+                </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Repository</div>
+                <div class="help-command">
+                    GitHub: <a href="https://github.com/precisionprotocol-io/silverlake" target="_blank" style="color: var(--status-in-progress);">github.com/precisionprotocol-io/silverlake</a>
+                </div>
+            </div>
+        `;
+
+        this.modalBody.innerHTML = privacyHtml;
+        this.showModal();
+
+        // Hide submit button for privacy info
+        this.modalSubmit.style.display = 'none';
+    }
+
+    /**
      * Handle modal submit
      */
     handleModalSubmit() {
@@ -692,8 +829,8 @@ class TaskTerminalApp {
 
         if (action === 'modify') {
             this.submitModifyTask();
-        } else if (action === 'delete' || action === 'bulk_delete' || action === 'view_notes' || action === 'help') {
-            // Delete, bulk_delete, view_notes, and help use custom buttons or no form
+        } else if (action === 'delete' || action === 'bulk_delete' || action === 'view_notes' || action === 'help' || action === 'privacy') {
+            // Delete, bulk_delete, view_notes, help, and privacy use custom buttons or no form
             return;
         } else if (action === 'add' || !action) {
             // Explicitly handle add action or default to add for backwards compatibility
