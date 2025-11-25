@@ -2034,14 +2034,6 @@ class TaskTerminalApp {
             popup.querySelector('.calendar-cancel-btn').addEventListener('click', () => {
                 popup.remove();
             });
-
-            // Enter key to save date (on time input)
-            popup.querySelector('#modalTimeInput').addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    popup.querySelector('.calendar-save-btn').click();
-                }
-            });
         };
 
         // Initial render
@@ -2059,7 +2051,19 @@ class TaskTerminalApp {
             e.stopPropagation();
         });
 
+        // Make popup focusable and add global Enter key handler
+        popup.setAttribute('tabindex', '-1');
+        popup.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                popup.querySelector('.calendar-save-btn').click();
+            }
+        });
+
         document.body.appendChild(popup);
+
+        // Focus the popup so it can receive keyboard events
+        popup.focus();
 
         // Close on outside click
         const closePopup = (e) => {
@@ -2256,14 +2260,6 @@ class TaskTerminalApp {
             popup.querySelector('.calendar-cancel-btn').addEventListener('click', () => {
                 popup.remove();
             });
-
-            // Enter key to save date (on time input)
-            popup.querySelector('#timeInput').addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    popup.querySelector('.calendar-save-btn').click();
-                }
-            });
         };
 
         // Initial render
@@ -2308,6 +2304,18 @@ class TaskTerminalApp {
         popup.addEventListener('click', (e) => {
             e.stopPropagation();
         });
+
+        // Make popup focusable and add global Enter key handler
+        popup.setAttribute('tabindex', '-1');
+        popup.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                popup.querySelector('.calendar-save-btn').click();
+            }
+        });
+
+        // Focus the popup so it can receive keyboard events
+        popup.focus();
 
         // Close on outside click or ESC key
         const closePopup = (e) => {
