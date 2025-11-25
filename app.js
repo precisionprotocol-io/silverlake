@@ -290,13 +290,27 @@ class TaskTerminalApp {
         }
         const hasAvailableParents = potentialParents.length > 0;
 
-        // Build parent task field HTML (only if there are potential parents)
-        const parentFieldHtml = hasAvailableParents ? `
-            <div class="form-field">
-                <label class="form-label">Parent Task (optional)</label>
+        // Build parent task toggle and field HTML (only if there are potential parents)
+        const parentToggleHtml = hasAvailableParents ? `
+            <div class="form-field" id="parentToggleContainer">
+                <button type="button" id="parentTaskToggle" class="parent-toggle-btn" style="
+                    background: transparent;
+                    border: 1px dashed var(--border-color);
+                    color: var(--text-secondary);
+                    padding: 8px 12px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 13px;
+                    width: 100%;
+                    text-align: left;
+                    transition: all 0.2s;
+                ">+ Add as subtask (optional)</button>
+                <input type="hidden" id="taskParent" value="">
+            </div>
+            <div class="form-field" id="parentSearchContainer" style="display: none;">
+                <label class="form-label">Parent Task</label>
                 <div class="parent-search-container" style="position: relative;">
                     <input type="text" id="parentSearchInput" class="form-input" placeholder="Search for parent task..." autocomplete="off">
-                    <input type="hidden" id="taskParent" value="">
                     <div id="parentSearchResults" class="parent-search-results" style="
                         display: none;
                         position: absolute;
@@ -312,16 +326,16 @@ class TaskTerminalApp {
                         z-index: 1000;
                     "></div>
                 </div>
-                <span class="form-hint">Type to search, Enter to select, or leave empty for standalone task</span>
+                <span class="form-hint">Type to search, click or Enter to select. <a href="#" id="cancelParentSelection" style="color: var(--status-blocked);">Cancel</a></span>
             </div>
-        ` : '';
+        ` : '<input type="hidden" id="taskParent" value="">';
 
         const formHtml = `
-            ${parentFieldHtml}
             <div class="form-field">
                 <label class="form-label">Name *</label>
                 <input type="text" id="taskName" class="form-input" placeholder="Task name" required>
             </div>
+            ${parentToggleHtml}
             <div class="form-field">
                 <label class="form-label">Due Date</label>
                 <button type="button" id="addTaskDueDateButton" class="form-date-button">
@@ -371,16 +385,42 @@ class TaskTerminalApp {
             });
         }
 
-        // Set up parent task search if available
+        // Set up parent task toggle and search if available
         if (hasAvailableParents) {
-            this.setupParentTaskSearch(potentialParents);
+            const toggleBtn = document.getElementById('parentTaskToggle');
+            const toggleContainer = document.getElementById('parentToggleContainer');
+            const searchContainer = document.getElementById('parentSearchContainer');
+            const cancelLink = document.getElementById('cancelParentSelection');
+            const hiddenInput = document.getElementById('taskParent');
+
+            toggleBtn.addEventListener('click', () => {
+                toggleContainer.style.display = 'none';
+                searchContainer.style.display = 'block';
+                this.setupParentTaskSearch(potentialParents);
+                document.getElementById('parentSearchInput').focus();
+            });
+
+            // Hover effect for toggle button
+            toggleBtn.addEventListener('mouseenter', () => {
+                toggleBtn.style.borderColor = 'var(--status-in-progress)';
+                toggleBtn.style.color = 'var(--text-primary)';
+            });
+            toggleBtn.addEventListener('mouseleave', () => {
+                toggleBtn.style.borderColor = 'var(--border-color)';
+                toggleBtn.style.color = 'var(--text-secondary)';
+            });
+
+            cancelLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                searchContainer.style.display = 'none';
+                toggleContainer.style.display = 'block';
+                hiddenInput.value = '';
+                document.getElementById('parentSearchInput').value = '';
+            });
         }
 
-        // Focus on name input (or parent search if available)
-        const firstInput = hasAvailableParents
-            ? document.getElementById('parentSearchInput')
-            : document.getElementById('taskName');
-        if (firstInput) firstInput.focus();
+        // Focus on name input
+        document.getElementById('taskName').focus();
     }
 
     /**
@@ -1102,17 +1142,14 @@ class TaskTerminalApp {
         const renderResults = () => {
             let html = '';
             currentMatches.forEach((task, index) => {
-                const isSelected = index === selectedIndex;
-                const bgColor = isSelected ? 'var(--bg-primary)' : 'var(--bg-secondary)';
-                const borderColor = isSelected ? 'var(--status-in-progress)' : 'transparent';
                 const subtaskIndicator = task.parentTaskId ? '└─ ' : '';
 
                 html += `
                     <div class="parent-result-item" data-task-id="${task.id}" data-index="${index}" style="
                         padding: 8px 12px;
                         cursor: pointer;
-                        background-color: ${bgColor};
-                        border-left: 2px solid ${borderColor};
+                        background-color: var(--bg-secondary);
+                        border-left: 2px solid transparent;
                         transition: all 0.1s;
                     ">
                         <div style="display: flex; align-items: center; gap: 8px;">
@@ -1126,15 +1163,32 @@ class TaskTerminalApp {
             resultsContainer.innerHTML = html;
             resultsContainer.style.display = 'block';
 
-            // Add click handlers
+            // Update visual selection
+            updateSelectionHighlight();
+
+            // Add click and hover handlers
             resultsContainer.querySelectorAll('.parent-result-item').forEach(item => {
-                item.addEventListener('click', () => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     selectParent(parseInt(item.dataset.taskId));
                 });
                 item.addEventListener('mouseenter', () => {
                     selectedIndex = parseInt(item.dataset.index);
-                    renderResults();
+                    updateSelectionHighlight();
                 });
+            });
+        };
+
+        const updateSelectionHighlight = () => {
+            resultsContainer.querySelectorAll('.parent-result-item').forEach((item, index) => {
+                if (index === selectedIndex) {
+                    item.style.backgroundColor = 'var(--bg-primary)';
+                    item.style.borderLeftColor = 'var(--status-in-progress)';
+                } else {
+                    item.style.backgroundColor = 'var(--bg-secondary)';
+                    item.style.borderLeftColor = 'transparent';
+                }
             });
         };
 
@@ -1980,6 +2034,14 @@ class TaskTerminalApp {
             popup.querySelector('.calendar-cancel-btn').addEventListener('click', () => {
                 popup.remove();
             });
+
+            // Enter key to save date (on time input)
+            popup.querySelector('#modalTimeInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    popup.querySelector('.calendar-save-btn').click();
+                }
+            });
         };
 
         // Initial render
@@ -2193,6 +2255,14 @@ class TaskTerminalApp {
             // Cancel button
             popup.querySelector('.calendar-cancel-btn').addEventListener('click', () => {
                 popup.remove();
+            });
+
+            // Enter key to save date (on time input)
+            popup.querySelector('#timeInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    popup.querySelector('.calendar-save-btn').click();
+                }
             });
         };
 
