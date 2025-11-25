@@ -2051,13 +2051,59 @@ class TaskTerminalApp {
             e.stopPropagation();
         });
 
-        // Make popup focusable and add global Enter key handler
+        // Make popup focusable and add keyboard navigation
         popup.setAttribute('tabindex', '-1');
         popup.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 popup.querySelector('.calendar-save-btn').click();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                // Move to previous day
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() - 1);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                // Move to next day
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() + 1);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                // Move to previous week
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() - 7);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                // Move to next week
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() + 7);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
             }
+            // Re-focus popup after render to maintain keyboard control
+            popup.focus();
         });
 
         document.body.appendChild(popup);
@@ -2305,12 +2351,60 @@ class TaskTerminalApp {
             e.stopPropagation();
         });
 
-        // Make popup focusable and add global Enter key handler
+        // Make popup focusable and add keyboard navigation
         popup.setAttribute('tabindex', '-1');
         popup.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 popup.querySelector('.calendar-save-btn').click();
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                // Move to previous day
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() - 1);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+                popup.focus();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                // Move to next day
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() + 1);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+                popup.focus();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                // Move to previous week
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() - 7);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+                popup.focus();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                // Move to next week
+                if (selectedDate) {
+                    selectedDate.setDate(selectedDate.getDate() + 7);
+                } else {
+                    selectedDate = new Date();
+                }
+                viewMonth = selectedDate.getMonth();
+                viewYear = selectedDate.getFullYear();
+                renderCalendar();
+                popup.focus();
             }
         });
 
