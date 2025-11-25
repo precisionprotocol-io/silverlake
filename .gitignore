@@ -17,3 +17,13 @@ Thumbs.db
 
 # Personal documentation
 SECURITY_ANALYSIS.md
+FUTURE_STATE_SPEC.md
+
+# Secrets and environment
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets.json
+config.local.js
