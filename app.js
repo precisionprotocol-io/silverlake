@@ -15,6 +15,9 @@ class TaskTerminalApp {
         this.visibleTasks = [];
         this.navigationMode = true; // true = navigation mode, false = command mode
 
+        // Folding state - tracks which parent tasks are collapsed
+        this.collapsedTasks = new Set();
+
         this.init();
     }
 
@@ -314,7 +317,7 @@ class TaskTerminalApp {
             <div class="form-field">
                 <label class="form-label">Parent Task ID</label>
                 <input type="number" id="taskParent" class="form-input" placeholder="Leave empty for standalone task">
-                <span class="form-hint">Max 2-level hierarchy: parent can't be a subtask</span>
+                <span class="form-hint">Max 3-level hierarchy: grandparent → parent → child</span>
             </div>
         `;
 
@@ -627,8 +630,15 @@ class TaskTerminalApp {
                     <span class="help-command-name">:Filter_Status!="Completed"</span> - Exclude status
                 </div>
                 <div class="help-command" style="margin-top: 10px; color: var(--text-muted); font-style: italic;">
-                    Note: When filtering subtasks, parent tasks are automatically included for context
+                    Note: Filtering includes all ancestors and descendants automatically
                 </div>
+            </div>
+
+            <div class="help-section">
+                <div class="help-title">Task Hierarchy</div>
+                <div class="help-command">Supports 3 levels: Grandparent → Parent → Child</div>
+                <div class="help-command">Click ▼/▶ icon to fold/unfold children</div>
+                <div class="help-command">Filtering on any task shows its full family tree</div>
             </div>
 
             <div class="help-section">
@@ -978,7 +988,7 @@ class TaskTerminalApp {
             document.querySelectorAll('.search-result-item').forEach(item => {
                 item.addEventListener('click', async () => {
                     const taskId = parseInt(item.dataset.taskId);
-                    this.hideModal();
+                    this.closeModal();
 
                     // Apply filter to show the selected task
                     this.currentFilters = {
@@ -1202,10 +1212,43 @@ class TaskTerminalApp {
                     <tbody>
             `;
 
+            // Build a map for quick depth calculation
+            const taskMap = new Map(tasks.map(t => [t.id, t]));
+            const getDepth = (t) => {
+                let depth = 0;
+                let current = t;
+                while (current.parentTaskId !== null && current.parentTaskId !== undefined) {
+                    depth++;
+                    current = taskMap.get(current.parentTaskId);
+                    if (!current) break;
+                }
+                return depth;
+            };
+
+            // Check if task is hidden due to collapsed ancestor
+            const isHiddenByCollapse = (t) => {
+                let current = t;
+                while (current.parentTaskId !== null && current.parentTaskId !== undefined) {
+                    if (this.collapsedTasks.has(current.parentTaskId)) {
+                        return true;
+                    }
+                    current = taskMap.get(current.parentTaskId);
+                    if (!current) break;
+                }
+                return false;
+            };
+
             tasks.forEach(task => {
+                // Skip if hidden due to collapsed parent
+                if (isHiddenByCollapse(task)) {
+                    return;
+                }
+
                 const isOverdue = this.taskManager.isTaskOverdue(task);
-                const isSubtask = task.parentTaskId !== null && task.parentTaskId !== undefined;
+                const depth = getDepth(task);
                 const isCompleted = task.status === 'Completed';
+                const hasChildren = task.childTaskIds && task.childTaskIds.length > 0;
+                const isCollapsed = this.collapsedTasks.has(task.id);
 
                 let rowClass = '';
                 if (isCompleted) {
@@ -1214,9 +1257,24 @@ class TaskTerminalApp {
                     rowClass = 'overdue';
                 }
 
-                const nameClass = isSubtask ? 'task-name subtask' : 'task-name';
+                // Determine name class based on depth
+                let nameClass = 'task-name';
+                if (depth === 1) {
+                    nameClass = 'task-name subtask';
+                } else if (depth >= 2) {
+                    nameClass = 'task-name grandchild';
+                }
+
+                // Fold toggle for tasks with children
+                let foldToggle = '';
+                if (hasChildren) {
+                    const toggleIcon = isCollapsed ? '▶' : '▼';
+                    foldToggle = `<span class="fold-toggle" data-task-id="${task.id}" title="Click to ${isCollapsed ? 'expand' : 'collapse'}">${toggleIcon}</span>`;
+                }
+
                 const statusClass = `status-badge status-${task.status.toLowerCase().replace(' ', '-')}`;
-                const priorityClass = `priority-badge priority-${task.priority.toLowerCase()}`;
+                const priorityClass = task.priority ? `priority-badge priority-${task.priority.toLowerCase()}` : 'priority-badge priority-none';
+                const priorityText = task.priority || '-';
                 const dueDateClass = isOverdue ? 'due-date overdue' : 'due-date';
 
                 const notesCount = task.notes && task.notes.length > 0 ? task.notes.length : 0;
@@ -1225,7 +1283,7 @@ class TaskTerminalApp {
                 tableHtml += `
                     <tr class="${rowClass}" data-task-id="${task.id}">
                         <td>${task.id}</td>
-                        <td><div class="${nameClass}">${this.escapeHtml(task.name)}</div></td>
+                        <td><div class="${nameClass}">${foldToggle}${this.escapeHtml(task.name)}</div></td>
                         <td class="due-date-cell ${dueDateClass}" data-task-id="${task.id}" title="Click to change due date">
                             ${this.taskManager.formatDate(task.dueDate)}
                         </td>
@@ -1234,7 +1292,7 @@ class TaskTerminalApp {
                         </td>
                         <td>${this.escapeHtml(task.project || '-')}</td>
                         <td class="priority-cell" data-task-id="${task.id}">
-                            <span class="${priorityClass}">${task.priority}</span>
+                            <span class="${priorityClass}">${priorityText}</span>
                         </td>
                         <td>${task.parentTaskId !== null ? task.parentTaskId : '-'}</td>
                         <td class="notes-cell" data-task-id="${task.id}" title="Click to view notes">${notesText}</td>
@@ -1264,15 +1322,26 @@ class TaskTerminalApp {
      * Attach event handlers to table rows and status cells
      */
     attachTableEventHandlers() {
+        // Click on fold toggle to expand/collapse
+        const foldToggles = this.taskTable.querySelectorAll('.fold-toggle');
+        foldToggles.forEach(toggle => {
+            toggle.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const taskId = parseInt(toggle.dataset.taskId);
+                this.toggleTaskFold(taskId);
+            });
+        });
+
         // Click on row to modify task
         const rows = this.taskTable.querySelectorAll('tbody tr');
         rows.forEach(row => {
             row.addEventListener('click', async (e) => {
-                // Don't trigger if clicking on status, priority, notes, or due date cell
+                // Don't trigger if clicking on status, priority, notes, due date cell, or fold toggle
                 if (e.target.closest('.status-cell') ||
                     e.target.closest('.priority-cell') ||
                     e.target.closest('.notes-cell') ||
-                    e.target.closest('.due-date-cell')) {
+                    e.target.closest('.due-date-cell') ||
+                    e.target.closest('.fold-toggle')) {
                     return;
                 }
 
@@ -1384,16 +1453,26 @@ class TaskTerminalApp {
 
         document.body.appendChild(dropdown);
 
-        // Close dropdown when clicking outside
+        // Close dropdown when clicking outside or pressing ESC
         const closeDropdown = (e) => {
             if (!dropdown.contains(e.target)) {
                 dropdown.remove();
                 document.removeEventListener('click', closeDropdown);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                dropdown.remove();
+                document.removeEventListener('click', closeDropdown);
+                document.removeEventListener('keydown', handleEscape);
             }
         };
 
         setTimeout(() => {
             document.addEventListener('click', closeDropdown);
+            document.addEventListener('keydown', handleEscape);
         }, 0);
     }
 
@@ -1458,16 +1537,26 @@ class TaskTerminalApp {
 
         document.body.appendChild(dropdown);
 
-        // Close dropdown when clicking outside
+        // Close dropdown when clicking outside or pressing ESC
         const closeDropdown = (e) => {
             if (!dropdown.contains(e.target)) {
                 dropdown.remove();
                 document.removeEventListener('click', closeDropdown);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                dropdown.remove();
+                document.removeEventListener('click', closeDropdown);
+                document.removeEventListener('keydown', handleEscape);
             }
         };
 
         setTimeout(() => {
             document.addEventListener('click', closeDropdown);
+            document.addEventListener('keydown', handleEscape);
         }, 0);
     }
 
@@ -1903,29 +1992,66 @@ class TaskTerminalApp {
         // Initial render
         renderCalendar();
 
-        // Position popup
+        // Position popup with viewport boundary checking
         const rect = cell.getBoundingClientRect();
         popup.style.position = 'fixed';
-        popup.style.top = `${rect.bottom + 5}px`;
-        popup.style.left = `${rect.left}px`;
+
+        // Add popup to DOM first to measure its height
+        document.body.appendChild(popup);
+
+        const popupHeight = popup.offsetHeight;
+        const popupWidth = popup.offsetWidth;
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+
+        // Check if there's enough space below
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        if (spaceBelow >= popupHeight + 10) {
+            // Position below the cell
+            popup.style.top = `${rect.bottom + 5}px`;
+        } else if (spaceAbove >= popupHeight + 10) {
+            // Position above the cell
+            popup.style.top = `${rect.top - popupHeight - 5}px`;
+        } else {
+            // Center vertically in viewport
+            popup.style.top = `${Math.max(10, (viewportHeight - popupHeight) / 2)}px`;
+        }
+
+        // Check horizontal positioning
+        if (rect.left + popupWidth > viewportWidth - 10) {
+            // Align to right edge of cell or viewport
+            popup.style.left = `${Math.max(10, viewportWidth - popupWidth - 10)}px`;
+        } else {
+            popup.style.left = `${rect.left}px`;
+        }
 
         // Stop propagation of clicks inside the popup
         popup.addEventListener('click', (e) => {
             e.stopPropagation();
         });
 
-        document.body.appendChild(popup);
-
-        // Close on outside click
+        // Close on outside click or ESC key
         const closePopup = (e) => {
             if (!popup.contains(e.target)) {
                 popup.remove();
                 document.removeEventListener('click', closePopup);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                popup.remove();
+                document.removeEventListener('click', closePopup);
+                document.removeEventListener('keydown', handleEscape);
             }
         };
 
         setTimeout(() => {
             document.addEventListener('click', closePopup);
+            document.addEventListener('keydown', handleEscape);
         }, 0);
     }
 
@@ -2007,6 +2133,18 @@ class TaskTerminalApp {
             // Scroll into view if needed
             rows[this.selectedTaskIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }
+    }
+
+    /**
+     * Toggle fold/unfold state for a task with children
+     */
+    async toggleTaskFold(taskId) {
+        if (this.collapsedTasks.has(taskId)) {
+            this.collapsedTasks.delete(taskId);
+        } else {
+            this.collapsedTasks.add(taskId);
+        }
+        await this.render();
     }
 
     async modifySelectedTask() {
@@ -2319,11 +2457,11 @@ class TaskTerminalApp {
                     task.id,
                     `"${this.escapeCSV(task.name)}"`,
                     `"${task.status}"`,
-                    `"${task.priority}"`,
+                    task.priority ? `"${task.priority}"` : '""',
                     task.project ? `"${this.escapeCSV(task.project)}"` : '',
                     task.dueDate ? `"${this.taskManager.formatDate(task.dueDate)}"` : '',
                     task.parentTaskId !== null ? task.parentTaskId : '',
-                    task.notes.length > 0 ? `"${this.escapeCSV(task.notes.join(' | '))}"` : ''
+                    task.notes.length > 0 ? `"${this.escapeCSV(task.notes.map(n => n.content).join(' | '))}"` : ''
                 ];
                 csvContent += row.join(',') + '\n';
             });

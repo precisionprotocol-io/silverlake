@@ -6,14 +6,18 @@ A web-based task management system with a terminal/command-line aesthetic, inspi
 
 - **Terminal Aesthetic**: Dark theme with monospace fonts and command-line interface
 - **Vim-Style Commands**: Intuitive colon commands for all operations
-- **Hierarchical Tasks**: Support for parent/child tasks (max 2-level hierarchy)
-- **Advanced Filtering**: Filter by ID, project, priority, or status
+- **Hierarchical Tasks**: Support for 3-level hierarchy (grandparent → parent → child)
+- **Foldable Tasks**: Click to collapse/expand task hierarchies
+- **Advanced Filtering**: Filter by ID, project, priority, or status with family tree inclusion
 - **Priority Sorting**: Sort tasks by priority (Critical → Low)
 - **Due Date Tracking**: Overdue tasks highlighted with glowing animation
+- **Auto-Complete Behavior**: Completed tasks have priority removed, pushing them to bottom
+- **Undo/Redo**: Full undo/redo support for task operations
 - **Command History**: Navigate previous commands with arrow keys
 - **IndexedDB Storage**: 100MB+ capacity for unlimited tasks
 - **Keyboard-Driven**: Minimal mouse interaction required
 - **Zero Setup**: Just open in browser - no installation needed
+- **Privacy-First**: 100% local storage, zero server communication
 
 ## Tech Stack
 
@@ -21,6 +25,7 @@ A web-based task management system with a terminal/command-line aesthetic, inspi
 - **Database**: IndexedDB (browser-native)
 - **Font**: JetBrains Mono (loaded from Google Fonts)
 - **Storage**: Local browser storage (100MB+ capacity)
+- **Dependencies**: None - pure vanilla implementation
 
 ## Getting Started
 
@@ -38,17 +43,19 @@ No server, no installation, no dependencies!
 |---------|-------------|
 | `:A` or `:add` | Add a new task |
 | `:M [task_id]` | Modify existing task |
-| `:D [task_id]` | Delete task |
-| `:query`, `:search`, `:?` | Open search modal to find tasks by name, ID, or project |
+| `:D [task_id]` | Delete task (moves to trash) |
+| `:D[1,2,5]` | Delete multiple tasks |
+| `:D[1~10]` | Delete range of tasks |
+| `:query`, `:search`, `:?` | Open search modal to find tasks |
 
 ### Filtering
 
-**Note**: When filtering by subtask criteria, parent tasks are automatically included for context.
+**Note**: Filtering automatically includes all ancestors AND descendants for complete context.
 
 | Command | Example | Description |
 |---------|---------|-------------|
-| `:Filter_ID=1` | `:Filter_ID=5` | Show single task |
-| `:Filter_ID=[1,2,5]` | `:Filter_ID=[1,3,7]` | Show multiple specific tasks |
+| `:Filter_ID=1` | `:Filter_ID=5` | Show single task with family |
+| `:Filter_ID=[1,2,5]` | `:Filter_ID=[1,3,7]` | Show multiple tasks with families |
 | `:Filter_ID=[1~10]` | `:Filter_ID=[5~15]` | Show range of tasks |
 | `:Filter_ID!=[1,2,5]` | `:Filter_ID!=[1,3,7]` | Exclude specific tasks |
 | `:Filter_Project="Name"` | `:Filter_Project="Alpha"` | Filter by project name |
@@ -58,6 +65,23 @@ No server, no installation, no dependencies!
 | `:Filter_Status="In Progress"` | `:Filter_Status="Completed"` | Filter by status |
 | `:Filter_Status!="Completed"` | `:Filter_Status!="Blocked"` | Exclude status |
 
+### Trash & Recovery
+
+| Command | Description |
+|---------|-------------|
+| `:trash` | View deleted tasks (recycle bin) |
+| `:restore [id]` | Restore task from trash |
+| `:purge [id]` | Permanently delete task |
+| `:purge all` | Empty trash (permanent) |
+
+### Data Management
+
+| Command | Description |
+|---------|-------------|
+| `:export` | Export all tasks to JSON file |
+| `:csv` | Export all tasks to CSV file |
+| `:import` | Import tasks from JSON backup |
+
 ### Sorting & Utility
 
 | Command | Description |
@@ -65,16 +89,33 @@ No server, no installation, no dependencies!
 | `:Sort_by_priority` | Sort tasks by priority (Critical → Low) |
 | `:clear` or `:c` | Clear all filters, show all tasks |
 | `:help` or `:h` | Show command reference |
-| `:quit` or `:q` | Info about closing the app |
+| `:privacy` | Show privacy and security information |
 
 ### Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `↑` / `↓` | Navigate command history |
-| `Esc` | Clear command input |
+| `↑` / `↓` | Navigate tasks / command history |
+| `J` / `K` | Navigate down / up in task list |
+| `Enter` | Modify selected task |
+| `C` | Mark selected task as Completed |
+| `!` | Mark selected task as Critical |
+| `U` | Undo last action |
+| `R` | Redo last undone action |
+| `Esc` | Clear command / close dropdown |
 | `Ctrl+Enter` | Submit modal form |
-| `Enter` | Execute command / Submit form |
+| `:` | Enter command mode |
+
+### Mouse Interactions
+
+| Click Target | Action |
+|--------------|--------|
+| Task row | Open modify modal |
+| Status badge | Quick status change dropdown |
+| Priority badge | Quick priority change dropdown |
+| Due date | Date picker popup |
+| Notes cell | View/add notes modal |
+| ▼/▶ icon | Fold/unfold child tasks |
 
 ## Task Properties
 
@@ -82,7 +123,7 @@ No server, no installation, no dependencies!
 - **Not Started** (Gray) - Default status
 - **In Progress** (Cyan) - Task is being worked on
 - **Blocked** (Red) - Task is blocked by dependencies
-- **Completed** (Green) - Task is finished
+- **Completed** (Green) - Task is finished (priority auto-removed)
 
 ### Priority Levels
 - **Low** (Gray) - Nice to have
@@ -101,14 +142,31 @@ No server, no installation, no dependencies!
 
 ## Task Hierarchy
 
-Tasks support a 2-level hierarchy:
-- **Parent tasks**: Standalone tasks that can have subtasks
-- **Child tasks**: Subtasks of a parent task
-- **Constraint**: A subtask cannot have its own subtasks (max 2 levels)
+Tasks support a **3-level hierarchy**:
+- **Grandparent tasks**: Top-level tasks that can have children
+- **Parent tasks**: Children of grandparents, can have their own children
+- **Child tasks**: Lowest level, cannot have subtasks
+
+### Hierarchy Features
+- **Foldable**: Click ▼/▶ to collapse/expand task families
+- **Smart Filtering**: Filtering any task shows its complete family tree
+- **Auto-complete**: When all children complete, parent can auto-complete
 
 When deleting a parent task, you can choose to:
 1. Delete all subtasks as well
 2. Convert subtasks to standalone tasks
+
+## Subtask Display
+
+Tasks are visually indented with tree characters:
+```
+1   Main Task (Grandparent)     ...  ▼
+2   ├─ Subtask 1 (Parent)       ...  ▼
+3   └── Sub-subtask 1 (Child)   ...
+4   ├─ Subtask 2 (Parent)       ...
+```
+
+Click ▼ to collapse children, ▶ to expand.
 
 ## Data Model
 
@@ -119,15 +177,17 @@ When deleting a parent task, you can choose to:
   dueDate: datetime,             // Optional due date
   status: "Not Started" | "In Progress" | "Blocked" | "Completed",
   project: string,               // Optional project name
-  priority: "Low" | "Medium" | "High" | "Critical",
+  priority: "Low" | "Medium" | "High" | "Critical" | null,
   notes: [                       // Array of timestamped notes
     {
       timestamp: datetime,
       content: string
     }
   ],
-  parentTaskId: number,          // ID of parent task (null if standalone)
-  childTaskIds: [number]         // Array of child task IDs
+  parentTaskId: number | null,   // ID of parent task (null if standalone)
+  childTaskIds: [number],        // Array of child task IDs
+  deleted: boolean,              // Soft delete flag
+  deletedAt: datetime            // Deletion timestamp
 }
 ```
 
@@ -139,18 +199,16 @@ Tasks with due dates in the past (and not completed) display:
 - Glowing/pulsing row animation
 - Critical priority styling
 
-### Subtask Display
-Subtasks are visually indented with tree characters:
-```
-1  Main Task           ...
-2  └─ Subtask 1        ...
-3  └─ Subtask 2        ...
-```
+### Completed Tasks
+- Strikethrough text styling
+- Reduced opacity
+- Priority automatically removed (sorted to bottom)
 
 ### Status & Priority Badges
 - Color-coded badges for easy visual scanning
 - Priority badges with borders
 - Critical priority has pulsing animation
+- Click to quick-change via dropdown
 
 ## Storage & Data
 
@@ -158,21 +216,23 @@ Subtasks are visually indented with tree characters:
 - **Capacity**: 100MB to unlimited (browser-dependent)
 - **Persistence**: Data persists across browser sessions
 - **Privacy**: All data stored locally, never sent to a server
-- **Export/Import**: Built-in methods for data backup (see taskManager.js)
+- **Export**: JSON backup with full data structure
+- **CSV Export**: Spreadsheet-compatible format with notes
 
 ## Browser Compatibility
 
 Works on all modern browsers that support:
 - IndexedDB
-- ES6 JavaScript
+- ES6+ JavaScript
 - CSS3 animations
+- CSS Variables
 - Flexbox
 
 Tested on:
 - Chrome 90+
 - Firefox 88+
 - Safari 14+
-- Edge 90+
+- Edge 15+ (including corporate Edge)
 
 ## File Structure
 
@@ -182,8 +242,9 @@ silverlake/
 ├── styles.css           # Terminal styling
 ├── taskManager.js       # Data model and IndexedDB layer
 ├── commandParser.js     # Command parsing logic
-├── app.js              # Main application logic
-└── README.md           # This file
+├── app.js               # Main application logic
+├── README.md            # This file
+└── SECURITY.md          # Security assessment
 ```
 
 ## Development
@@ -204,67 +265,62 @@ location.reload();
 
 ## Examples
 
-### Example 1: Create a project with subtasks
+### Example 1: Create a 3-level project hierarchy
 ```
 :A
-Name: Build Website
-Project: WebDev
+Name: Q4 Planning
+Project: Strategy
 Priority: High
-Due Date: +7d
-Status: In Progress
 
 :A
-Name: Design Mockups
-Project: WebDev
-Priority: High
+Name: Marketing Campaign
+Project: Strategy
 Parent Task ID: 1
 
 :A
-Name: Write HTML/CSS
-Project: WebDev
-Priority: Medium
-Parent Task ID: 1
+Name: Design Social Media Assets
+Project: Strategy
+Parent Task ID: 2
+```
+
+Result:
+```
+1   Q4 Planning              High    ▼
+2   ├─ Marketing Campaign    High    ▼
+3   └── Design Social...     Medium
 ```
 
 ### Example 2: Filter and manage tasks
 ```
-:Filter_Project="WebDev"        # Show only WebDev tasks
+:Filter_Project="Strategy"      # Shows task 1, 2, and 3 (full family)
+:Filter_ID=3                    # Shows task 3 AND parents 1, 2
 :Sort_by_priority               # Sort by priority
-:M 2                            # Modify task #2
 :clear                          # Show all tasks again
 ```
 
-### Example 3: Search for tasks
+### Example 3: Quick status/priority changes
 ```
-:query                          # Open search modal
-# Type "login" to find tasks with "login" in name
-# Type "5" to find task #5
-# Type "WebDev" to find tasks in WebDev project
-# Click result to jump to that task
-```
-
-### Example 4: Using negation filters
-```
-:Filter_Status!="Completed"     # Show all tasks except completed ones
-:Filter_Priority!="Low"         # Show all tasks except low priority
-:Filter_Project!="Archive"      # Exclude archived project tasks
-:clear                          # Clear filters
+# Click on status badge to see dropdown
+# Click on priority badge to see dropdown
+# Press ESC to close without selecting
+# Or click outside the dropdown
 ```
 
-### Example 5: Using date shortcuts
+### Example 4: Using keyboard navigation
 ```
-:A
-Name: Daily Standup
-Due Date: today
-Priority: Medium
+J/K or ↑/↓    # Navigate through tasks
+Enter         # Modify selected task
+C             # Mark selected as Completed
+!             # Mark selected as Critical
+U             # Undo last action
+R             # Redo
+```
 
-:A
-Name: Code Review
-Due Date: tomorrow
-
-:A
-Name: Sprint Planning
-Due Date: +3d
+### Example 5: Collapse/expand tasks
+```
+# Click ▼ next to "Q4 Planning" to collapse
+# All children and grandchildren are hidden
+# Click ▶ to expand again
 ```
 
 ## Tips & Best Practices
@@ -274,7 +330,9 @@ Due Date: +3d
 3. **Add Notes**: Use the notes field to track progress and decisions
 4. **Command History**: Press ↑ to repeat recent commands
 5. **Keyboard First**: Learn keyboard shortcuts for faster workflow
-6. **Hierarchical Planning**: Break large tasks into subtasks
+6. **Hierarchical Planning**: Break large tasks into 3-level hierarchies
+7. **Fold Large Trees**: Collapse completed task families to reduce clutter
+8. **Regular Backups**: Use `:export` to create JSON backups
 
 ## Troubleshooting
 
@@ -293,14 +351,30 @@ Due Date: +3d
 - Check spelling - commands are case-insensitive
 - Type `:h` to see correct command syntax
 
+### Dropdown won't close
+- Press `Esc` key
+- Click outside the dropdown
+- Click the Cancel button
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for a comprehensive security assessment.
+
+**Key Security Features:**
+- 100% client-side, no server communication
+- XSS prevention with HTML escaping
+- Input validation on all user data
+- No external dependencies
+- No cookies or tracking
+
 ## License
 
 This project is provided as-is for personal use.
 
 ## Version
 
-Silverlake v1.0
+Silverlake v1.1
 
 ---
 
-**Built with ❤️ using Vanilla JavaScript and IndexedDB**
+**Built with vanilla JavaScript and IndexedDB - no dependencies, no tracking, just tasks.**

@@ -184,8 +184,34 @@ body {
 }
 
 .task-name.subtask::before {
-    content: "└─ ";
+    content: "├─ ";
     color: var(--text-muted);
+}
+
+.task-name.grandchild {
+    padding-left: 40px;
+}
+
+.task-name.grandchild::before {
+    content: "└── ";
+    color: var(--text-muted);
+}
+
+/* Fold Toggle */
+.fold-toggle {
+    display: inline-block;
+    width: 16px;
+    margin-right: 6px;
+    cursor: pointer;
+    color: var(--status-in-progress);
+    font-size: 10px;
+    transition: transform 0.2s ease;
+    user-select: none;
+}
+
+.fold-toggle:hover {
+    color: var(--text-primary);
+    transform: scale(1.2);
 }
 
 /* Status Badge */
@@ -247,6 +273,11 @@ body {
     color: var(--priority-critical);
     border: 1px solid var(--priority-critical);
     animation: pulse 1.5s ease-in-out infinite;
+}
+
+.priority-none {
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
 }
 
 @keyframes pulse {

@@ -92,9 +92,10 @@ class TaskManager {
             if (!parent) {
                 throw new Error(`Parent task with ID ${taskData.parentTaskId} not found`);
             }
-            // Check if parent has a parent (max 2-level hierarchy)
-            if (parent.parentTaskId !== null && parent.parentTaskId !== undefined) {
-                throw new Error('Cannot create subtask: Parent task is already a subtask (max 2-level hierarchy)');
+            // Check depth (max 3-level hierarchy: grandparent -> parent -> child)
+            const parentDepth = await this.getTaskDepth(parent);
+            if (parentDepth >= 2) {
+                throw new Error('Cannot create subtask: Maximum 3-level hierarchy reached (grandparent → parent → child)');
             }
         }
 
@@ -189,12 +190,15 @@ class TaskManager {
                 if (!newParent) {
                     throw new Error(`Parent task with ID ${updates.parentTaskId} not found`);
                 }
-                // Check if new parent has a parent
-                if (newParent.parentTaskId !== null) {
-                    throw new Error('Cannot set parent: Target task is already a subtask (max 2-level hierarchy)');
+                // Check depth (max 3-level hierarchy)
+                const newParentDepth = await this.getTaskDepth(newParent);
+                const taskMaxChildDepth = await this.getMaxChildDepth(task);
+                // Combined depth would be: newParentDepth + 1 (for this task) + taskMaxChildDepth
+                if (newParentDepth + 1 + taskMaxChildDepth > 2) {
+                    throw new Error('Cannot set parent: Maximum 3-level hierarchy would be exceeded');
                 }
-                // Check if new parent is a child of this task
-                if (task.childTaskIds.includes(updates.parentTaskId)) {
+                // Check if new parent is a child of this task (circular reference)
+                if (await this.isDescendant(updates.parentTaskId, task.id)) {
                     throw new Error('Cannot set parent: Would create circular reference');
                 }
                 // Add to new parent
@@ -211,6 +215,11 @@ class TaskManager {
                 task[key] = updates[key];
             }
         });
+
+        // Auto-remove priority when task is completed (pushes to bottom of list)
+        if (task.status === 'Completed' && task.priority !== null) {
+            task.priority = null;
+        }
 
         await this.saveTask(task);
 
@@ -278,6 +287,103 @@ class TaskManager {
         }
 
         return true;
+    }
+
+    /**
+     * Get the depth of a task in the hierarchy (0 = root, 1 = child, 2 = grandchild)
+     */
+    async getTaskDepth(task) {
+        let depth = 0;
+        let current = task;
+
+        while (current.parentTaskId !== null && current.parentTaskId !== undefined) {
+            depth++;
+            current = await this.getTaskById(current.parentTaskId);
+            if (!current) break;
+        }
+
+        return depth;
+    }
+
+    /**
+     * Get the maximum depth of children below a task
+     */
+    async getMaxChildDepth(task) {
+        if (!task.childTaskIds || task.childTaskIds.length === 0) {
+            return 0;
+        }
+
+        let maxDepth = 0;
+        for (const childId of task.childTaskIds) {
+            const child = await this.getTaskById(childId);
+            if (child) {
+                const childDepth = 1 + await this.getMaxChildDepth(child);
+                maxDepth = Math.max(maxDepth, childDepth);
+            }
+        }
+
+        return maxDepth;
+    }
+
+    /**
+     * Check if a task is a descendant of another task
+     */
+    async isDescendant(taskId, ancestorId) {
+        const task = await this.getTaskById(taskId);
+        if (!task) return false;
+
+        // Check direct children
+        const ancestor = await this.getTaskById(ancestorId);
+        if (!ancestor || !ancestor.childTaskIds) return false;
+
+        if (ancestor.childTaskIds.includes(taskId)) {
+            return true;
+        }
+
+        // Check grandchildren
+        for (const childId of ancestor.childTaskIds) {
+            if (await this.isDescendant(taskId, childId)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get the root ancestor of a task
+     */
+    async getRootAncestor(task) {
+        let current = task;
+        while (current.parentTaskId !== null && current.parentTaskId !== undefined) {
+            const parent = await this.getTaskById(current.parentTaskId);
+            if (!parent) break;
+            current = parent;
+        }
+        return current;
+    }
+
+    /**
+     * Get all descendants of a task (children and grandchildren)
+     */
+    async getAllDescendants(task) {
+        const descendants = [];
+
+        if (!task.childTaskIds || task.childTaskIds.length === 0) {
+            return descendants;
+        }
+
+        for (const childId of task.childTaskIds) {
+            const child = await this.getTaskById(childId);
+            if (child && !child.deleted) {
+                descendants.push(child);
+                // Recursively get grandchildren
+                const childDescendants = await this.getAllDescendants(child);
+                descendants.push(...childDescendants);
+            }
+        }
+
+        return descendants;
     }
 
     /**
@@ -522,31 +628,70 @@ class TaskManager {
             return true;
         });
 
-        // Now include parent tasks for any matched subtasks
+        // Now include all ancestors and descendants for matched tasks
         const resultIds = new Set(matchedTasks.map(t => t.id));
-        const parentsToInclude = new Set();
+        const additionalTasks = new Set();
 
         for (const task of matchedTasks) {
-            if (task.parentTaskId && !resultIds.has(task.parentTaskId)) {
-                parentsToInclude.add(task.parentTaskId);
+            // Include all ancestors (parent, grandparent)
+            let current = task;
+            while (current.parentTaskId !== null && current.parentTaskId !== undefined) {
+                if (!resultIds.has(current.parentTaskId)) {
+                    additionalTasks.add(current.parentTaskId);
+                }
+                current = allTasks.find(t => t.id === current.parentTaskId);
+                if (!current) break;
             }
+
+            // Include all descendants (children, grandchildren)
+            const addDescendants = (t) => {
+                if (t.childTaskIds && t.childTaskIds.length > 0) {
+                    for (const childId of t.childTaskIds) {
+                        if (!resultIds.has(childId)) {
+                            additionalTasks.add(childId);
+                        }
+                        const child = allTasks.find(c => c.id === childId);
+                        if (child) {
+                            addDescendants(child);
+                        }
+                    }
+                }
+            };
+            addDescendants(task);
         }
 
-        // Add parent tasks to the result
+        // Add additional tasks to the result
         const finalTasks = [...matchedTasks];
-        for (const parentId of parentsToInclude) {
-            const parentTask = allTasks.find(t => t.id === parentId);
-            if (parentTask) {
-                finalTasks.push(parentTask);
+        for (const taskId of additionalTasks) {
+            const task = allTasks.find(t => t.id === taskId);
+            if (task) {
+                finalTasks.push(task);
             }
         }
 
-        // Sort to ensure parents come before children
+        // Sort to ensure proper hierarchy (ancestors before descendants)
         return finalTasks.sort((a, b) => {
-            if (a.parentTaskId === b.id) return 1; // b is parent of a
-            if (b.parentTaskId === a.id) return -1; // a is parent of b
-            return a.id - b.id; // default: sort by ID
+            const depthA = this.getTaskDepthSync(a, allTasks);
+            const depthB = this.getTaskDepthSync(b, allTasks);
+            if (depthA !== depthB) return depthA - depthB;
+            return a.id - b.id;
         });
+    }
+
+    /**
+     * Synchronous version of getTaskDepth for sorting
+     */
+    getTaskDepthSync(task, allTasks) {
+        let depth = 0;
+        let current = task;
+
+        while (current.parentTaskId !== null && current.parentTaskId !== undefined) {
+            depth++;
+            current = allTasks.find(t => t.id === current.parentTaskId);
+            if (!current) break;
+        }
+
+        return depth;
     }
 
     /**
@@ -561,6 +706,17 @@ class TaskManager {
         };
 
         return [...tasks].sort((a, b) => {
+            // Completed tasks (null priority) always go to the bottom
+            const aPriorityNull = a.priority === null;
+            const bPriorityNull = b.priority === null;
+
+            if (aPriorityNull && !bPriorityNull) return 1;
+            if (!aPriorityNull && bPriorityNull) return -1;
+            if (aPriorityNull && bPriorityNull) {
+                // Both completed - sort by ID (most recent first)
+                return b.id - a.id;
+            }
+
             // First sort by priority
             const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
             if (priorityDiff !== 0) {
@@ -676,26 +832,41 @@ class TaskManager {
     }
 
     /**
-     * Get tasks organized by hierarchy (parents first, then their children)
+     * Get tasks organized by hierarchy (grandparents -> parents -> children)
      */
     getTasksHierarchical(tasks) {
         const result = [];
         const taskMap = new Map(tasks.map(t => [t.id, t]));
+        const addedIds = new Set();
 
-        // First pass: add all parent tasks (tasks with no parent)
+        // Recursive function to add task and its descendants
+        const addTaskWithDescendants = (task) => {
+            if (addedIds.has(task.id)) return;
+            addedIds.add(task.id);
+            result.push(task);
+
+            // Add children immediately after
+            if (task.childTaskIds && task.childTaskIds.length > 0) {
+                task.childTaskIds.forEach(childId => {
+                    const child = taskMap.get(childId);
+                    if (child && !addedIds.has(childId)) {
+                        addTaskWithDescendants(child);
+                    }
+                });
+            }
+        };
+
+        // First pass: add all root tasks (tasks with no parent)
         tasks.forEach(task => {
             if (task.parentTaskId === null || task.parentTaskId === undefined) {
-                result.push(task);
+                addTaskWithDescendants(task);
+            }
+        });
 
-                // Add its children immediately after
-                if (task.childTaskIds && task.childTaskIds.length > 0) {
-                    task.childTaskIds.forEach(childId => {
-                        const child = taskMap.get(childId);
-                        if (child) {
-                            result.push(child);
-                        }
-                    });
-                }
+        // Second pass: add any orphaned tasks (parent not in current list)
+        tasks.forEach(task => {
+            if (!addedIds.has(task.id)) {
+                addTaskWithDescendants(task);
             }
         });
 
