@@ -537,7 +537,8 @@ class TaskManager {
     async purgeTask(taskId) {
         const task = await this.getTaskById(taskId);
         if (!task) {
-            throw new Error(`Task with ID ${taskId} not found`);
+            // Task already purged (possibly by recursive parent purge), skip silently
+            return;
         }
 
         if (!task.deleted) {
