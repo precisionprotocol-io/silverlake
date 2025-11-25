@@ -388,19 +388,27 @@ class TaskManager {
 
     /**
      * Delete a task (soft delete - marks as deleted)
+     * @param {number} taskId - ID of task to delete
+     * @param {boolean} deleteChildren - Whether to delete children too
+     * @param {boolean} isRootDelete - Internal flag: true if this is the top-level delete call (for undo tracking)
      */
-    async deleteTask(taskId, deleteChildren = false) {
+    async deleteTask(taskId, deleteChildren = false, isRootDelete = true) {
         const task = await this.getTaskById(taskId);
         if (!task) {
             throw new Error(`Task with ID ${taskId} not found`);
         }
 
+        // Collect all task IDs being deleted (for undo)
+        const deletedTaskIds = [taskId];
+
         // Handle children
         if (task.childTaskIds.length > 0) {
             if (deleteChildren) {
-                // Delete all children (soft delete)
+                // Delete all children recursively (soft delete) - pass true to delete grandchildren too
+                // Pass isRootDelete=false so children don't record separate undo actions
                 for (const childId of task.childTaskIds) {
-                    await this.deleteTask(childId, false);
+                    const childDeletedIds = await this.deleteTask(childId, true, false);
+                    deletedTaskIds.push(...childDeletedIds);
                 }
             } else {
                 // Convert children to standalone tasks
@@ -428,14 +436,17 @@ class TaskManager {
         task.deletedAt = new Date().toISOString();
         await this.saveTask(task);
 
-        // Record action for undo
-        this.recordAction({
-            type: 'delete',
-            taskId: task.id,
-            timestamp: new Date().toISOString()
-        });
+        // Only record undo action for the root delete (not recursive child deletes)
+        if (isRootDelete) {
+            this.recordAction({
+                type: 'delete',
+                taskId: task.id,
+                deletedTaskIds: deletedTaskIds, // All tasks deleted in this operation
+                timestamp: new Date().toISOString()
+            });
+        }
 
-        return task;
+        return deletedTaskIds;
     }
 
     /**
@@ -491,6 +502,36 @@ class TaskManager {
     }
 
     /**
+     * Restore a deleted task without recording to history (for undo operations)
+     */
+    async restoreTaskWithoutHistory(taskId) {
+        const task = await this.getTaskById(taskId);
+        if (!task) {
+            return null; // Task may have been purged, skip silently
+        }
+
+        if (!task.deleted) {
+            return task; // Already restored, skip
+        }
+
+        // Restore the task
+        task.deleted = false;
+        task.deletedAt = null;
+        await this.saveTask(task);
+
+        // If it had a parent, restore the relationship
+        if (task.parentTaskId !== null) {
+            const parent = await this.getTaskById(task.parentTaskId);
+            if (parent && !parent.deleted && !parent.childTaskIds.includes(taskId)) {
+                parent.childTaskIds.push(taskId);
+                await this.saveTask(parent);
+            }
+        }
+
+        return task;
+    }
+
+    /**
      * Permanently delete a task (purge from trash)
      */
     async purgeTask(taskId) {
@@ -503,12 +544,12 @@ class TaskManager {
             throw new Error(`Task with ID ${taskId} is not in trash. Use :D to delete it first.`);
         }
 
-        // Permanently delete all children if they exist and are deleted
+        // Recursively purge all deleted children (including grandchildren)
         if (task.childTaskIds.length > 0) {
             for (const childId of task.childTaskIds) {
                 const child = await this.getTaskById(childId);
                 if (child && child.deleted) {
-                    await this.deleteTaskById(childId);
+                    await this.purgeTask(childId);
                 }
             }
         }
@@ -951,8 +992,13 @@ class TaskManager {
         try {
             switch (action.type) {
                 case 'delete':
-                    // Restore the deleted task
-                    await this.restoreTask(action.taskId);
+                    // Restore all deleted tasks (in reverse order: grandchildren first, then parents, then grandparent)
+                    // This ensures parent relationships are properly restored
+                    const tasksToRestore = action.deletedTaskIds || [action.taskId];
+                    // Reverse so we restore deepest descendants first
+                    for (let i = tasksToRestore.length - 1; i >= 0; i--) {
+                        await this.restoreTaskWithoutHistory(tasksToRestore[i]);
+                    }
                     break;
 
                 case 'modify':
@@ -964,6 +1010,14 @@ class TaskManager {
                     // Delete the created task
                     const task = await this.getTaskById(action.taskId);
                     if (task) {
+                        // Remove from parent's childTaskIds if it has a parent
+                        if (task.parentTaskId !== null) {
+                            const parent = await this.getTaskById(task.parentTaskId);
+                            if (parent) {
+                                parent.childTaskIds = parent.childTaskIds.filter(id => id !== action.taskId);
+                                await this.saveTask(parent);
+                            }
+                        }
                         task.deleted = true;
                         task.deletedAt = new Date().toISOString();
                         await this.saveTask(task);
@@ -974,6 +1028,14 @@ class TaskManager {
                     // Re-delete the task
                     const restoredTask = await this.getTaskById(action.taskId);
                     if (restoredTask) {
+                        // Remove from parent's childTaskIds if it has a parent
+                        if (restoredTask.parentTaskId !== null) {
+                            const parent = await this.getTaskById(restoredTask.parentTaskId);
+                            if (parent) {
+                                parent.childTaskIds = parent.childTaskIds.filter(id => id !== action.taskId);
+                                await this.saveTask(parent);
+                            }
+                        }
                         restoredTask.deleted = true;
                         restoredTask.deletedAt = new Date().toISOString();
                         await this.saveTask(restoredTask);
@@ -1008,12 +1070,10 @@ class TaskManager {
         try {
             switch (action.type) {
                 case 'delete':
-                    // Re-delete the task
-                    const task = await this.getTaskById(action.taskId);
-                    if (task) {
-                        task.deleted = true;
-                        task.deletedAt = new Date().toISOString();
-                        await this.saveTask(task);
+                    // Re-delete all tasks that were deleted in original action
+                    const tasksToDelete = action.deletedTaskIds || [action.taskId];
+                    for (const delTaskId of tasksToDelete) {
+                        await this.deleteTaskWithoutHistory(delTaskId);
                     }
                     break;
 
@@ -1056,6 +1116,27 @@ class TaskManager {
             throw new Error(`Task with ID ${taskId} not found`);
         }
 
+        // Handle parent relationship changes (important for undo/redo with grandchildren)
+        if (updates.parentTaskId !== undefined && updates.parentTaskId !== task.parentTaskId) {
+            // Remove from old parent's childTaskIds
+            if (task.parentTaskId !== null) {
+                const oldParent = await this.getTaskById(task.parentTaskId);
+                if (oldParent) {
+                    oldParent.childTaskIds = oldParent.childTaskIds.filter(id => id !== taskId);
+                    await this.saveTask(oldParent);
+                }
+            }
+
+            // Add to new parent's childTaskIds
+            if (updates.parentTaskId !== null) {
+                const newParent = await this.getTaskById(updates.parentTaskId);
+                if (newParent && !newParent.childTaskIds.includes(taskId)) {
+                    newParent.childTaskIds.push(taskId);
+                    await this.saveTask(newParent);
+                }
+            }
+        }
+
         // Apply updates
         Object.keys(updates).forEach(key => {
             if (key !== 'id' && key !== 'childTaskIds') {
@@ -1064,6 +1145,36 @@ class TaskManager {
         });
 
         await this.saveTask(task);
+        return task;
+    }
+
+    /**
+     * Delete a task without recording to history (for redo operations)
+     */
+    async deleteTaskWithoutHistory(taskId) {
+        const task = await this.getTaskById(taskId);
+        if (!task) {
+            return null; // Task may not exist, skip silently
+        }
+
+        if (task.deleted) {
+            return task; // Already deleted, skip
+        }
+
+        // Remove from parent's childTaskIds if applicable
+        if (task.parentTaskId !== null) {
+            const parent = await this.getTaskById(task.parentTaskId);
+            if (parent) {
+                parent.childTaskIds = parent.childTaskIds.filter(id => id !== taskId);
+                await this.saveTask(parent);
+            }
+        }
+
+        // Soft delete the task
+        task.deleted = true;
+        task.deletedAt = new Date().toISOString();
+        await this.saveTask(task);
+
         return task;
     }
 }

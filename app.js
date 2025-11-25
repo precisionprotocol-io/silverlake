@@ -167,6 +167,9 @@ class TaskTerminalApp {
             } else if (e.key === 'r' || e.key === 'R') {
                 e.preventDefault();
                 this.redoAction();
+            } else if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                this.toggleSelectedTaskFold();
             }
         }
     }
@@ -272,10 +275,49 @@ class TaskTerminalApp {
     /**
      * Show add task modal
      */
-    showAddTaskModal() {
+    async showAddTaskModal() {
         this.modalHeader.textContent = 'Add New Task';
 
+        // Get all tasks to check if parent field should be shown
+        const allTasks = await this.taskManager.getAllTasks();
+        // Filter to only show tasks that can be parents (depth < 2)
+        const potentialParents = [];
+        for (const task of allTasks) {
+            const depth = await this.taskManager.getTaskDepth(task);
+            if (depth < 2) {
+                potentialParents.push(task);
+            }
+        }
+        const hasAvailableParents = potentialParents.length > 0;
+
+        // Build parent task field HTML (only if there are potential parents)
+        const parentFieldHtml = hasAvailableParents ? `
+            <div class="form-field">
+                <label class="form-label">Parent Task (optional)</label>
+                <div class="parent-search-container" style="position: relative;">
+                    <input type="text" id="parentSearchInput" class="form-input" placeholder="Search for parent task..." autocomplete="off">
+                    <input type="hidden" id="taskParent" value="">
+                    <div id="parentSearchResults" class="parent-search-results" style="
+                        display: none;
+                        position: absolute;
+                        top: 100%;
+                        left: 0;
+                        right: 0;
+                        max-height: 200px;
+                        overflow-y: auto;
+                        background-color: var(--bg-secondary);
+                        border: 1px solid var(--border-color);
+                        border-top: none;
+                        border-radius: 0 0 4px 4px;
+                        z-index: 1000;
+                    "></div>
+                </div>
+                <span class="form-hint">Type to search, Enter to select, or leave empty for standalone task</span>
+            </div>
+        ` : '';
+
         const formHtml = `
+            ${parentFieldHtml}
             <div class="form-field">
                 <label class="form-label">Name *</label>
                 <input type="text" id="taskName" class="form-input" placeholder="Task name" required>
@@ -314,11 +356,6 @@ class TaskTerminalApp {
                 <label class="form-label">Notes</label>
                 <textarea id="taskNotes" class="form-textarea" placeholder="Optional notes"></textarea>
             </div>
-            <div class="form-field">
-                <label class="form-label">Parent Task ID</label>
-                <input type="number" id="taskParent" class="form-input" placeholder="Leave empty for standalone task">
-                <span class="form-hint">Max 3-level hierarchy: grandparent → parent → child</span>
-            </div>
         `;
 
         this.modalBody.innerHTML = formHtml;
@@ -334,8 +371,16 @@ class TaskTerminalApp {
             });
         }
 
-        // Focus on first input
-        document.getElementById('taskName').focus();
+        // Set up parent task search if available
+        if (hasAvailableParents) {
+            this.setupParentTaskSearch(potentialParents);
+        }
+
+        // Focus on name input (or parent search if available)
+        const firstInput = hasAvailableParents
+            ? document.getElementById('parentSearchInput')
+            : document.getElementById('taskName');
+        if (firstInput) firstInput.focus();
     }
 
     /**
@@ -637,7 +682,7 @@ class TaskTerminalApp {
             <div class="help-section">
                 <div class="help-title">Task Hierarchy</div>
                 <div class="help-command">Supports 3 levels: Grandparent → Parent → Child</div>
-                <div class="help-command">Click ▼/▶ icon to fold/unfold children</div>
+                <div class="help-command">Click ▼/▶ icon or press <span class="help-command-name">F</span> to fold/unfold children</div>
                 <div class="help-command">Filtering on any task shows its full family tree</div>
             </div>
 
@@ -649,13 +694,7 @@ class TaskTerminalApp {
             </div>
 
             <div class="help-section">
-                <div class="help-title">Trash & Undo/Redo</div>
-                <div class="help-command">
-                    <span class="help-command-name">U</span> - Undo last action (keyboard shortcut)
-                </div>
-                <div class="help-command">
-                    <span class="help-command-name">R</span> - Redo last undone action (keyboard shortcut)
-                </div>
+                <div class="help-title">Trash Management</div>
                 <div class="help-command">
                     <span class="help-command-name">:trash</span> - View deleted tasks (recycle bin)
                 </div>
@@ -693,10 +732,19 @@ class TaskTerminalApp {
             </div>
 
             <div class="help-section">
-                <div class="help-title">Keyboard Shortcuts</div>
-                <div class="help-command">↑/↓ - Navigate command history</div>
-                <div class="help-command">Esc - Clear command input</div>
-                <div class="help-command">Ctrl+Enter - Submit modal form</div>
+                <div class="help-title">Keyboard Shortcuts (Navigation Mode)</div>
+                <div class="help-command"><span class="help-command-name">↑/↓</span> - Navigate tasks</div>
+                <div class="help-command"><span class="help-command-name">A</span> - Add new task</div>
+                <div class="help-command"><span class="help-command-name">M</span> - Modify selected task</div>
+                <div class="help-command"><span class="help-command-name">D</span> - Delete selected task</div>
+                <div class="help-command"><span class="help-command-name">C</span> - Complete selected task</div>
+                <div class="help-command"><span class="help-command-name">F</span> - Fold/Unfold selected task children</div>
+                <div class="help-command"><span class="help-command-name">!</span> - Set Critical priority</div>
+                <div class="help-command"><span class="help-command-name">U</span> - Undo last action</div>
+                <div class="help-command"><span class="help-command-name">R</span> - Redo last undone action</div>
+                <div class="help-command"><span class="help-command-name">:</span> - Enter command mode</div>
+                <div class="help-command"><span class="help-command-name">Esc</span> - Exit command mode</div>
+                <div class="help-command"><span class="help-command-name">Ctrl+Enter</span> - Submit modal form</div>
             </div>
 
             <div class="help-section">
@@ -1006,6 +1054,164 @@ class TaskTerminalApp {
     }
 
     /**
+     * Set up parent task search functionality
+     */
+    setupParentTaskSearch(potentialParents) {
+        const searchInput = document.getElementById('parentSearchInput');
+        const hiddenInput = document.getElementById('taskParent');
+        const resultsContainer = document.getElementById('parentSearchResults');
+
+        if (!searchInput || !hiddenInput || !resultsContainer) return;
+
+        let selectedIndex = -1;
+        let currentMatches = [];
+
+        const updateResults = (query) => {
+            if (query === '') {
+                resultsContainer.style.display = 'none';
+                currentMatches = [];
+                selectedIndex = -1;
+                return;
+            }
+
+            const queryLower = query.toLowerCase();
+            const queryId = parseInt(query);
+
+            currentMatches = potentialParents.filter(task => {
+                if (!isNaN(queryId) && task.id === queryId) return true;
+                if (task.name.toLowerCase().includes(queryLower)) return true;
+                if (task.project && task.project.toLowerCase().includes(queryLower)) return true;
+                return false;
+            });
+
+            if (currentMatches.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div style="padding: 10px; color: var(--text-muted); text-align: center;">
+                        No matching tasks found
+                    </div>
+                `;
+                resultsContainer.style.display = 'block';
+                selectedIndex = -1;
+                return;
+            }
+
+            selectedIndex = 0; // Auto-select first result
+            renderResults();
+        };
+
+        const renderResults = () => {
+            let html = '';
+            currentMatches.forEach((task, index) => {
+                const isSelected = index === selectedIndex;
+                const bgColor = isSelected ? 'var(--bg-primary)' : 'var(--bg-secondary)';
+                const borderColor = isSelected ? 'var(--status-in-progress)' : 'transparent';
+                const subtaskIndicator = task.parentTaskId ? '└─ ' : '';
+
+                html += `
+                    <div class="parent-result-item" data-task-id="${task.id}" data-index="${index}" style="
+                        padding: 8px 12px;
+                        cursor: pointer;
+                        background-color: ${bgColor};
+                        border-left: 2px solid ${borderColor};
+                        transition: all 0.1s;
+                    ">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="color: var(--text-muted); font-size: 11px;">#${task.id}</span>
+                            <span style="font-size: 13px;">${subtaskIndicator}${this.escapeHtml(task.name)}</span>
+                        </div>
+                        ${task.project ? `<div style="font-size: 11px; color: var(--text-secondary); margin-left: 30px;">Project: ${this.escapeHtml(task.project)}</div>` : ''}
+                    </div>
+                `;
+            });
+            resultsContainer.innerHTML = html;
+            resultsContainer.style.display = 'block';
+
+            // Add click handlers
+            resultsContainer.querySelectorAll('.parent-result-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    selectParent(parseInt(item.dataset.taskId));
+                });
+                item.addEventListener('mouseenter', () => {
+                    selectedIndex = parseInt(item.dataset.index);
+                    renderResults();
+                });
+            });
+        };
+
+        const selectParent = (taskId) => {
+            const task = potentialParents.find(t => t.id === taskId);
+            if (task) {
+                hiddenInput.value = taskId;
+                searchInput.value = `#${task.id} - ${task.name}`;
+                resultsContainer.style.display = 'none';
+                currentMatches = [];
+                selectedIndex = -1;
+                // Move focus to name input
+                document.getElementById('taskName').focus();
+            }
+        };
+
+        const clearParent = () => {
+            hiddenInput.value = '';
+            searchInput.value = '';
+            resultsContainer.style.display = 'none';
+            currentMatches = [];
+            selectedIndex = -1;
+        };
+
+        // Input event for searching
+        searchInput.addEventListener('input', (e) => {
+            // If user clears the input, also clear the hidden value
+            if (e.target.value === '') {
+                hiddenInput.value = '';
+            }
+            updateResults(e.target.value.trim());
+        });
+
+        // Keyboard navigation
+        searchInput.addEventListener('keydown', (e) => {
+            if (currentMatches.length === 0) {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Prevent form submit when no matches
+                }
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, currentMatches.length - 1);
+                renderResults();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                renderResults();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && selectedIndex < currentMatches.length) {
+                    selectParent(currentMatches[selectedIndex].id);
+                }
+            } else if (e.key === 'Escape') {
+                resultsContainer.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+
+        // Close results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+                resultsContainer.style.display = 'none';
+            }
+        }, { once: false });
+
+        // Show results when focusing on input if there's text
+        searchInput.addEventListener('focus', () => {
+            if (searchInput.value.trim() && !hiddenInput.value) {
+                updateResults(searchInput.value.trim());
+            }
+        });
+    }
+
+    /**
      * Handle modal submit
      */
     handleModalSubmit() {
@@ -1033,7 +1239,8 @@ class TaskTerminalApp {
             const project = document.getElementById('taskProject').value.trim();
             const priority = document.getElementById('taskPriority').value;
             const notesStr = document.getElementById('taskNotes').value.trim();
-            const parentStr = document.getElementById('taskParent').value.trim();
+            const parentElement = document.getElementById('taskParent');
+            const parentStr = parentElement ? parentElement.value.trim() : '';
 
             if (!name) {
                 throw new Error('Task name is required');
@@ -2145,6 +2352,18 @@ class TaskTerminalApp {
             this.collapsedTasks.add(taskId);
         }
         await this.render();
+    }
+
+    /**
+     * Toggle fold/unfold for the currently selected task (keyboard shortcut)
+     */
+    async toggleSelectedTaskFold() {
+        if (this.visibleTasks.length === 0) return;
+
+        const task = this.visibleTasks[this.selectedTaskIndex];
+        if (task && task.childTaskIds && task.childTaskIds.length > 0) {
+            await this.toggleTaskFold(task.id);
+        }
     }
 
     async modifySelectedTask() {
