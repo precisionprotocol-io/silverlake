@@ -177,6 +177,7 @@ body {
     display: flex;
     align-items: center;
     gap: 5px;
+    position: relative;
 }
 
 .task-name.subtask {
@@ -186,6 +187,7 @@ body {
 .task-name.subtask::before {
     content: "├─ ";
     color: var(--text-muted);
+    pointer-events: none;
 }
 
 .task-name.grandchild {
@@ -195,6 +197,7 @@ body {
 .task-name.grandchild::before {
     content: "└── ";
     color: var(--text-muted);
+    pointer-events: none;
 }
 
 /* Fold Toggle */
@@ -207,6 +210,8 @@ body {
     font-size: 10px;
     transition: transform 0.2s ease;
     user-select: none;
+    position: relative;
+    z-index: 1;
 }
 
 .fold-toggle:hover {

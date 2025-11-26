@@ -1600,9 +1600,6 @@ class TaskTerminalApp {
             // Organize hierarchically
             tasks = this.taskManager.getTasksHierarchical(tasks);
 
-            // Store visible tasks for navigation
-            this.visibleTasks = tasks;
-
             if (tasks.length === 0) {
                 this.visibleTasks = [];
                 this.selectedTaskIndex = 0;
@@ -1615,10 +1612,8 @@ class TaskTerminalApp {
                 return;
             }
 
-            // Keep selection within bounds
-            if (this.selectedTaskIndex >= tasks.length) {
-                this.selectedTaskIndex = Math.max(0, tasks.length - 1);
-            }
+            // Array to track actually visible (rendered) tasks
+            const actuallyVisibleTasks = [];
 
             // Build table
             let tableHtml = `
@@ -1669,6 +1664,9 @@ class TaskTerminalApp {
                 if (isHiddenByCollapse(task)) {
                     return;
                 }
+
+                // Track this task as actually visible
+                actuallyVisibleTasks.push(task);
 
                 const isOverdue = this.taskManager.isTaskOverdue(task);
                 const depth = getDepth(task);
@@ -1731,6 +1729,14 @@ class TaskTerminalApp {
                 </table>
             `;
 
+            // Update visibleTasks to only include actually rendered tasks
+            this.visibleTasks = actuallyVisibleTasks;
+
+            // Keep selection within bounds
+            if (this.selectedTaskIndex >= this.visibleTasks.length) {
+                this.selectedTaskIndex = Math.max(0, this.visibleTasks.length - 1);
+            }
+
             this.taskTable.innerHTML = tableHtml;
 
             // Add click handlers for row modification
@@ -1748,15 +1754,20 @@ class TaskTerminalApp {
      * Attach event handlers to table rows and status cells
      */
     attachTableEventHandlers() {
-        // Click on fold toggle to expand/collapse
-        const foldToggles = this.taskTable.querySelectorAll('.fold-toggle');
-        foldToggles.forEach(toggle => {
-            toggle.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const taskId = parseInt(toggle.dataset.taskId);
-                this.toggleTaskFold(taskId);
+        // Use event delegation for fold toggles (attach once, not on every render)
+        if (!this._foldToggleHandlerAttached) {
+            this.taskTable.addEventListener('click', async (e) => {
+                const foldToggle = e.target.closest('.fold-toggle');
+                if (foldToggle) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const taskId = parseInt(foldToggle.dataset.taskId);
+                    await this.toggleTaskFold(taskId);
+                    return;
+                }
             });
-        });
+            this._foldToggleHandlerAttached = true;
+        }
 
         // Click on row to modify task
         const rows = this.taskTable.querySelectorAll('tbody tr');
