@@ -1207,7 +1207,8 @@ class TaskTerminalApp {
 
             matches.forEach(task => {
                 const statusClass = task.status.toLowerCase().replace(/\s+/g, '-');
-                const priorityClass = task.priority.toLowerCase();
+                const priorityClass = task.priority ? task.priority.toLowerCase() : 'none';
+                const priorityText = task.priority || '-';
                 const subtaskIndicator = task.parentTaskId ? '<span style="color: var(--text-muted); margin-right: 5px;">└─</span>' : '';
 
                 resultsHtml += `
@@ -1224,13 +1225,13 @@ class TaskTerminalApp {
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
                             <span style="color: var(--text-muted); font-size: 12px;">#${task.id}</span>
                             <span class="status-badge status-${statusClass}">${task.status}</span>
-                            <span class="priority-badge priority-${priorityClass}">${task.priority}</span>
+                            <span class="priority-badge priority-${priorityClass}">${priorityText}</span>
                         </div>
                         <div style="font-size: 14px; margin-bottom: 5px;">
                             ${subtaskIndicator}${this.escapeHtml(task.name)}
                         </div>
                         ${task.project ? `<div style="font-size: 12px; color: var(--text-secondary);">Project: ${this.escapeHtml(task.project)}</div>` : ''}
-                        ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary);">Due: ${this.formatDate(task.dueDate)}</div>` : ''}
+                        ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary);">Due: ${this.taskManager.formatDate(task.dueDate)}</div>` : ''}
                     </div>
                 `;
             });
