@@ -472,6 +472,7 @@ class TaskTerminalApp {
             if (task.parentTaskId !== null) {
                 // Task already has a parent - show the search field with current value
                 parentFieldHtml = `
+                    <input type="hidden" id="taskParent" value="${task.parentTaskId}">
                     <div class="form-field" id="parentToggleContainer" style="display: none;">
                         <button type="button" id="parentTaskToggle" class="parent-toggle-btn" style="
                             background: transparent;
@@ -485,13 +486,11 @@ class TaskTerminalApp {
                             text-align: left;
                             transition: all 0.2s;
                         ">+ Set parent task (optional)</button>
-                        <input type="hidden" id="taskParent" value="">
                     </div>
                     <div class="form-field" id="parentSearchContainer">
                         <label class="form-label">Parent Task</label>
                         <div class="parent-search-container" style="position: relative;">
                             <input type="text" id="parentSearchInput" class="form-input" value="${this.escapeHtml(currentParentDisplay)}" placeholder="Search for parent task..." autocomplete="off">
-                            <input type="hidden" id="taskParent" value="${task.parentTaskId}">
                             <div id="parentSearchResults" class="parent-search-results" style="
                                 display: none;
                                 position: absolute;
