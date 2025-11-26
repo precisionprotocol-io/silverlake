@@ -426,7 +426,7 @@ class TaskTerminalApp {
     /**
      * Show modify task modal
      */
-    showModifyTaskModal(task) {
+    async showModifyTaskModal(task) {
         this.modalHeader.textContent = `Modify Task #${task.id}`;
 
         const dueDateDisplay = task.dueDate
@@ -440,11 +440,127 @@ class TaskTerminalApp {
             })
             : 'Click to select date';
 
+        // Get all tasks to check if parent field should be shown
+        const allTasks = await this.taskManager.getAllTasks();
+        // Filter to only show tasks that can be parents (depth < 2) and exclude current task and its descendants
+        const taskDescendants = await this.taskManager.getAllDescendants(task);
+        const descendantIds = new Set(taskDescendants.map(t => t.id));
+        descendantIds.add(task.id); // Can't be parent of itself
+
+        const potentialParents = [];
+        for (const t of allTasks) {
+            if (descendantIds.has(t.id)) continue; // Skip self and descendants
+            const depth = await this.taskManager.getTaskDepth(t);
+            if (depth < 2) {
+                potentialParents.push(t);
+            }
+        }
+        const hasAvailableParents = potentialParents.length > 0;
+
+        // Get current parent task name if exists
+        let currentParentDisplay = '';
+        if (task.parentTaskId !== null) {
+            const currentParent = await this.taskManager.getTaskById(task.parentTaskId);
+            if (currentParent) {
+                currentParentDisplay = `#${currentParent.id} - ${currentParent.name}`;
+            }
+        }
+
+        // Build parent task toggle and field HTML
+        let parentFieldHtml;
+        if (hasAvailableParents) {
+            if (task.parentTaskId !== null) {
+                // Task already has a parent - show the search field with current value
+                parentFieldHtml = `
+                    <div class="form-field" id="parentToggleContainer" style="display: none;">
+                        <button type="button" id="parentTaskToggle" class="parent-toggle-btn" style="
+                            background: transparent;
+                            border: 1px dashed var(--border-color);
+                            color: var(--text-secondary);
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            width: 100%;
+                            text-align: left;
+                            transition: all 0.2s;
+                        ">+ Set parent task (optional)</button>
+                        <input type="hidden" id="taskParent" value="">
+                    </div>
+                    <div class="form-field" id="parentSearchContainer">
+                        <label class="form-label">Parent Task</label>
+                        <div class="parent-search-container" style="position: relative;">
+                            <input type="text" id="parentSearchInput" class="form-input" value="${this.escapeHtml(currentParentDisplay)}" placeholder="Search for parent task..." autocomplete="off">
+                            <input type="hidden" id="taskParent" value="${task.parentTaskId}">
+                            <div id="parentSearchResults" class="parent-search-results" style="
+                                display: none;
+                                position: absolute;
+                                top: 100%;
+                                left: 0;
+                                right: 0;
+                                max-height: 200px;
+                                overflow-y: auto;
+                                background-color: var(--bg-secondary);
+                                border: 1px solid var(--border-color);
+                                border-top: none;
+                                border-radius: 0 0 4px 4px;
+                                z-index: 1000;
+                            "></div>
+                        </div>
+                        <span class="form-hint">Type to search, click or Enter to select. <a href="#" id="clearParentSelection" style="color: var(--status-blocked);">Remove parent</a></span>
+                    </div>
+                `;
+            } else {
+                // Task has no parent - show toggle button
+                parentFieldHtml = `
+                    <div class="form-field" id="parentToggleContainer">
+                        <button type="button" id="parentTaskToggle" class="parent-toggle-btn" style="
+                            background: transparent;
+                            border: 1px dashed var(--border-color);
+                            color: var(--text-secondary);
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            width: 100%;
+                            text-align: left;
+                            transition: all 0.2s;
+                        ">+ Set parent task (optional)</button>
+                        <input type="hidden" id="taskParent" value="">
+                    </div>
+                    <div class="form-field" id="parentSearchContainer" style="display: none;">
+                        <label class="form-label">Parent Task</label>
+                        <div class="parent-search-container" style="position: relative;">
+                            <input type="text" id="parentSearchInput" class="form-input" placeholder="Search for parent task..." autocomplete="off">
+                            <div id="parentSearchResults" class="parent-search-results" style="
+                                display: none;
+                                position: absolute;
+                                top: 100%;
+                                left: 0;
+                                right: 0;
+                                max-height: 200px;
+                                overflow-y: auto;
+                                background-color: var(--bg-secondary);
+                                border: 1px solid var(--border-color);
+                                border-top: none;
+                                border-radius: 0 0 4px 4px;
+                                z-index: 1000;
+                            "></div>
+                        </div>
+                        <span class="form-hint">Type to search, click or Enter to select. <a href="#" id="cancelParentSelection" style="color: var(--status-blocked);">Cancel</a></span>
+                    </div>
+                `;
+            }
+        } else {
+            parentFieldHtml = '<input type="hidden" id="taskParent" value="">';
+        }
+
         const formHtml = `
             <div class="form-field">
                 <label class="form-label">Name *</label>
                 <input type="text" id="taskName" class="form-input" value="${this.escapeHtml(task.name)}" required>
             </div>
+            ${parentFieldHtml}
             <div class="form-field">
                 <label class="form-label">Due Date</label>
                 <button type="button" id="modifyTaskDueDateButton" class="form-date-button">
@@ -479,10 +595,6 @@ class TaskTerminalApp {
                 <label class="form-label">Add Note</label>
                 <textarea id="taskNotes" class="form-textarea" placeholder="Add a new note (existing notes preserved)"></textarea>
             </div>
-            <div class="form-field">
-                <label class="form-label">Parent Task ID</label>
-                <input type="number" id="taskParent" class="form-input" value="${task.parentTaskId !== null ? task.parentTaskId : ''}" placeholder="Leave empty for standalone task">
-            </div>
         `;
 
         this.modalBody.innerHTML = formHtml;
@@ -498,6 +610,59 @@ class TaskTerminalApp {
                 e.stopPropagation();
                 this.showModalCalendar('taskDueDate', 'modifyTaskDueDateDisplay');
             });
+        }
+
+        // Set up parent task toggle and search if available
+        if (hasAvailableParents) {
+            const toggleBtn = document.getElementById('parentTaskToggle');
+            const toggleContainer = document.getElementById('parentToggleContainer');
+            const searchContainer = document.getElementById('parentSearchContainer');
+            const hiddenInput = document.getElementById('taskParent');
+
+            if (task.parentTaskId !== null) {
+                // Task has parent - set up search and clear link
+                this.setupParentTaskSearch(potentialParents);
+                const clearLink = document.getElementById('clearParentSelection');
+                if (clearLink) {
+                    clearLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        hiddenInput.value = '';
+                        document.getElementById('parentSearchInput').value = '';
+                        searchContainer.style.display = 'none';
+                        toggleContainer.style.display = 'block';
+                    });
+                }
+            } else {
+                // Task has no parent - set up toggle
+                const cancelLink = document.getElementById('cancelParentSelection');
+
+                toggleBtn.addEventListener('click', () => {
+                    toggleContainer.style.display = 'none';
+                    searchContainer.style.display = 'block';
+                    this.setupParentTaskSearch(potentialParents);
+                    document.getElementById('parentSearchInput').focus();
+                });
+
+                // Hover effect for toggle button
+                toggleBtn.addEventListener('mouseenter', () => {
+                    toggleBtn.style.borderColor = 'var(--status-in-progress)';
+                    toggleBtn.style.color = 'var(--text-primary)';
+                });
+                toggleBtn.addEventListener('mouseleave', () => {
+                    toggleBtn.style.borderColor = 'var(--border-color)';
+                    toggleBtn.style.color = 'var(--text-secondary)';
+                });
+
+                if (cancelLink) {
+                    cancelLink.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        searchContainer.style.display = 'none';
+                        toggleContainer.style.display = 'block';
+                        hiddenInput.value = '';
+                        document.getElementById('parentSearchInput').value = '';
+                    });
+                }
+            }
         }
 
         document.getElementById('taskName').focus();
