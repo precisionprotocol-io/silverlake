@@ -1140,8 +1140,13 @@ class TaskTerminalApp {
         // Hide submit button for search
         this.modalSubmit.style.display = 'none';
 
-        // Get all tasks for searching
-        const allTasks = await this.taskManager.getAllTasks();
+        // Store reference to taskManager for use in event handler
+        const taskManager = this.taskManager;
+        const escapeHtml = this.escapeHtml.bind(this);
+        const closeModal = this.closeModal.bind(this);
+        const render = this.render.bind(this);
+        const showMessage = this.showMessage.bind(this);
+        const self = this;
 
         // Wait for DOM to be ready (important for Edge browser)
         setTimeout(() => {
@@ -1154,104 +1159,107 @@ class TaskTerminalApp {
                 return;
             }
 
-            searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.trim();
+            searchInput.addEventListener('input', async (e) => {
+                const query = e.target.value.trim();
 
-            if (query === '') {
-                searchResults.innerHTML = `
-                    <div style="color: var(--text-muted); text-align: center; padding: 20px;">
-                        Start typing to search...
-                    </div>
-                `;
-                return;
-            }
-
-            // Search by ID (exact match) or name (partial match, case-insensitive)
-            const queryLower = query.toLowerCase();
-            const queryId = parseInt(query);
-
-            const matches = allTasks.filter(task => {
-                // Check ID match
-                if (!isNaN(queryId) && task.id === queryId) {
-                    return true;
-                }
-
-                // Check name match (case-insensitive, partial)
-                if (task.name.toLowerCase().includes(queryLower)) {
-                    return true;
-                }
-
-                // Check project match
-                if (task.project && task.project.toLowerCase().includes(queryLower)) {
-                    return true;
-                }
-
-                return false;
-            });
-
-            if (matches.length === 0) {
-                searchResults.innerHTML = `
-                    <div style="color: var(--text-muted); text-align: center; padding: 20px;">
-                        No tasks found matching "${this.escapeHtml(query)}"
-                    </div>
-                `;
-                return;
-            }
-
-            // Display results
-            let resultsHtml = `
-                <div style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px;">
-                    Found ${matches.length} task${matches.length === 1 ? '' : 's'}
-                </div>
-            `;
-
-            matches.forEach(task => {
-                const statusClass = task.status.toLowerCase().replace(/\s+/g, '-');
-                const priorityClass = task.priority ? task.priority.toLowerCase() : 'none';
-                const priorityText = task.priority || '-';
-                const subtaskIndicator = task.parentTaskId ? '<span style="color: var(--text-muted); margin-right: 5px;">└─</span>' : '';
-
-                resultsHtml += `
-                    <div class="search-result-item" data-task-id="${task.id}" style="
-                        padding: 12px;
-                        margin-bottom: 8px;
-                        background-color: var(--bg-secondary);
-                        border: 1px solid var(--border-color);
-                        border-radius: 4px;
-                        cursor: pointer;
-                        transition: all 0.2s;
-                    " onmouseover="this.style.borderColor='var(--status-in-progress)'; this.style.backgroundColor='var(--bg-primary)';"
-                       onmouseout="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-secondary)';">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
-                            <span style="color: var(--text-muted); font-size: 12px;">#${task.id}</span>
-                            <span class="status-badge status-${statusClass}">${task.status}</span>
-                            <span class="priority-badge priority-${priorityClass}">${priorityText}</span>
+                if (query === '') {
+                    searchResults.innerHTML = `
+                        <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                            Start typing to search...
                         </div>
-                        <div style="font-size: 14px; margin-bottom: 5px;">
-                            ${subtaskIndicator}${this.escapeHtml(task.name)}
-                        </div>
-                        ${task.project ? `<div style="font-size: 12px; color: var(--text-secondary);">Project: ${this.escapeHtml(task.project)}</div>` : ''}
-                        ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary);">Due: ${this.taskManager.formatDate(task.dueDate)}</div>` : ''}
-                    </div>
-                `;
-            });
+                    `;
+                    return;
+                }
 
-            searchResults.innerHTML = resultsHtml;
+                // Get fresh task list on each search
+                const allTasks = await taskManager.getAllTasks();
 
-            // Add click handlers to results
-            document.querySelectorAll('.search-result-item').forEach(item => {
-                item.addEventListener('click', async () => {
-                    const taskId = parseInt(item.dataset.taskId);
-                    this.closeModal();
+                // Search by ID (exact match) or name (partial match, case-insensitive)
+                const queryLower = query.toLowerCase();
+                const queryId = parseInt(query);
 
-                    // Apply filter to show the selected task
-                    this.currentFilters = {
-                        id: { value: taskId, negate: false }
-                    };
-                    await this.render();
-                    this.showMessage(`Showing task #${taskId}`, 'success');
+                const matches = allTasks.filter(task => {
+                    // Check ID match
+                    if (!isNaN(queryId) && task.id === queryId) {
+                        return true;
+                    }
+
+                    // Check name match (case-insensitive, partial)
+                    if (task.name.toLowerCase().includes(queryLower)) {
+                        return true;
+                    }
+
+                    // Check project match
+                    if (task.project && task.project.toLowerCase().includes(queryLower)) {
+                        return true;
+                    }
+
+                    return false;
                 });
-            });
+
+                if (matches.length === 0) {
+                    searchResults.innerHTML = `
+                        <div style="color: var(--text-muted); text-align: center; padding: 20px;">
+                            No tasks found matching "${escapeHtml(query)}"
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Display results
+                let resultsHtml = `
+                    <div style="margin-bottom: 10px; color: var(--text-secondary); font-size: 12px;">
+                        Found ${matches.length} task${matches.length === 1 ? '' : 's'}
+                    </div>
+                `;
+
+                matches.forEach(task => {
+                    const statusClass = task.status.toLowerCase().replace(/\s+/g, '-');
+                    const priorityClass = task.priority ? task.priority.toLowerCase() : 'none';
+                    const priorityText = task.priority || '-';
+                    const subtaskIndicator = task.parentTaskId ? '<span style="color: var(--text-muted); margin-right: 5px;">└─</span>' : '';
+
+                    resultsHtml += `
+                        <div class="search-result-item" data-task-id="${task.id}" style="
+                            padding: 12px;
+                            margin-bottom: 8px;
+                            background-color: var(--bg-secondary);
+                            border: 1px solid var(--border-color);
+                            border-radius: 4px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        " onmouseover="this.style.borderColor='var(--status-in-progress)'; this.style.backgroundColor='var(--bg-primary)';"
+                           onmouseout="this.style.borderColor='var(--border-color)'; this.style.backgroundColor='var(--bg-secondary)';">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <span style="color: var(--text-muted); font-size: 12px;">#${task.id}</span>
+                                <span class="status-badge status-${statusClass}">${task.status}</span>
+                                <span class="priority-badge priority-${priorityClass}">${priorityText}</span>
+                            </div>
+                            <div style="font-size: 14px; margin-bottom: 5px;">
+                                ${subtaskIndicator}${escapeHtml(task.name)}
+                            </div>
+                            ${task.project ? `<div style="font-size: 12px; color: var(--text-secondary);">Project: ${escapeHtml(task.project)}</div>` : ''}
+                            ${task.dueDate ? `<div style="font-size: 12px; color: var(--text-secondary);">Due: ${taskManager.formatDate(task.dueDate)}</div>` : ''}
+                        </div>
+                    `;
+                });
+
+                searchResults.innerHTML = resultsHtml;
+
+                // Add click handlers to results (query within searchResults only)
+                searchResults.querySelectorAll('.search-result-item').forEach(item => {
+                    item.addEventListener('click', async () => {
+                        const taskId = parseInt(item.dataset.taskId);
+                        closeModal();
+
+                        // Apply filter to show the selected task and its family tree
+                        self.currentFilters = {
+                            id: { value: taskId, negate: false }
+                        };
+                        await render();
+                        showMessage(`Showing task #${taskId}`, 'success');
+                    });
+                });
             });
 
             // Focus the search input
