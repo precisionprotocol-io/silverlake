@@ -221,6 +221,11 @@ class TaskManager {
             task.priority = null;
         }
 
+        // Auto-complete all descendants when task is completed
+        if (task.status === 'Completed') {
+            await this.completeAllDescendants(task);
+        }
+
         await this.saveTask(task);
 
         // Record action for undo
@@ -287,6 +292,26 @@ class TaskManager {
         }
 
         return true;
+    }
+
+    /**
+     * Complete all descendants (children and grandchildren) of a task
+     */
+    async completeAllDescendants(task) {
+        if (!task.childTaskIds || task.childTaskIds.length === 0) {
+            return;
+        }
+
+        for (const childId of task.childTaskIds) {
+            const child = await this.getTaskById(childId);
+            if (child && child.status !== 'Completed') {
+                child.status = 'Completed';
+                child.priority = null; // Auto-remove priority for completed tasks
+                await this.saveTask(child);
+                // Recursively complete grandchildren
+                await this.completeAllDescendants(child);
+            }
+        }
     }
 
     /**
@@ -652,7 +677,7 @@ class TaskManager {
                 const filterValue = filters.priority.value !== undefined ? filters.priority.value : filters.priority;
                 const negate = filters.priority.negate || false;
 
-                const matches = task.priority.toLowerCase() === filterValue.toLowerCase();
+                const matches = task.priority && task.priority.toLowerCase() === filterValue.toLowerCase();
 
                 if (negate ? matches : !matches) return false;
             }

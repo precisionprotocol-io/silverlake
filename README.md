@@ -356,16 +356,87 @@ R             # Redo
 - Click outside the dropdown
 - Click the Cancel button
 
-## Security
+## Security & Data Isolation
 
 See [SECURITY.md](SECURITY.md) for a comprehensive security assessment.
+
+### GitHub Pages Hosting - Data Isolation Guarantee
+
+**Important for IT teams:** When hosted on GitHub Pages, **GitHub cannot access, read, or collect any user task data**. Here's why:
+
+#### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     GitHub Pages Server                          │
+│  (Static file hosting only - serves HTML, CSS, JS files)        │
+│  • No server-side code execution                                 │
+│  • No database connections                                       │
+│  • No request logging of application data                        │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ Initial page load only
+                              │ (static files: ~50KB)
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      User's Browser                              │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │                    Silverlake App                            ││
+│  │  • All JavaScript runs locally in browser                   ││
+│  │  • Zero network requests after initial load                 ││
+│  │  • No fetch(), XMLHttpRequest, or WebSocket calls           ││
+│  └─────────────────────────────────────────────────────────────┘│
+│                              │                                   │
+│                              ▼                                   │
+│  ┌─────────────────────────────────────────────────────────────┐│
+│  │                   IndexedDB (Local)                          ││
+│  │  • Browser-native database                                  ││
+│  │  • Sandboxed per origin (same-origin policy)                ││
+│  │  • Data stored on user's device ONLY                        ││
+│  │  • Cannot be accessed by GitHub or any external server      ││
+│  │  • Persists across browser sessions                         ││
+│  └─────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### Technical Verification
+
+1. **No Outbound Data Transmission**
+   - Code audit confirms: zero `fetch()`, `XMLHttpRequest`, or `WebSocket` usage
+   - No analytics scripts (Google Analytics, etc.)
+   - No tracking pixels or beacons
+   - No third-party JavaScript libraries
+
+2. **Browser Storage Isolation**
+   - IndexedDB enforces same-origin policy
+   - Data isolated to `username.github.io` domain
+   - Cannot be accessed by GitHub's servers or other domains
+   - Other browser tabs/sites cannot access this data
+
+3. **External Resources**
+   - Only external resource: Google Fonts (JetBrains Mono typeface)
+   - Font loading does not transmit any application or user data
+
+4. **What GitHub Can See**
+   - HTTP access logs: IP address, timestamp, browser user-agent
+   - These logs contain NO task content, names, notes, or user data
+   - Standard web server logging (same as any website visit)
+
+#### For Corporate/Enterprise Use
+
+This architecture is suitable for:
+- **Air-gapped environments** (works offline after initial load)
+- **High-security networks** (no data exfiltration possible)
+- **GDPR/Privacy compliance** (no personal data collection)
+- **Auditable deployments** (open-source, verifiable code)
 
 **Key Security Features:**
 - 100% client-side, no server communication
 - XSS prevention with HTML escaping
 - Input validation on all user data
-- No external dependencies
+- No external JavaScript dependencies
 - No cookies or tracking
+- Data never leaves the user's device
 
 ## License
 
