@@ -18,6 +18,11 @@ class TaskTerminalApp {
         // Folding state - tracks which parent tasks are collapsed
         this.collapsedTasks = new Set();
 
+        // Notification state
+        this.notificationPermission = 'default';
+        this.notifiedTaskIds = new Set(); // Track which tasks we've already notified about
+        this.notificationCheckInterval = null;
+
         this.init();
     }
 
@@ -35,6 +40,9 @@ class TaskTerminalApp {
 
             // Initial render
             await this.render();
+
+            // Initialize notifications
+            await this.initNotifications();
 
             this.isInitialized = true;
             this.showMessage('Silverlake initialized successfully', 'success');
@@ -65,6 +73,38 @@ class TaskTerminalApp {
         this.mobileCompleteBtn = document.getElementById('mobileCompleteBtn');
         this.mobileDeleteBtn = document.getElementById('mobileDeleteBtn');
         this.mobileCommandBtn = document.getElementById('mobileCommandBtn');
+
+        // Command modal elements
+        this.commandModal = document.getElementById('commandModal');
+        this.commandModalInput = document.getElementById('commandModalInput');
+        this.commandModalClose = document.getElementById('commandModalClose');
+        this.commandSuggestions = document.getElementById('commandSuggestions');
+
+        // Auto-completion state
+        this.selectedSuggestionIndex = -1;
+        this.currentSuggestions = [];
+
+        // Available commands for auto-completion
+        this.availableCommands = [
+            { cmd: 'add', aliases: ['a'], desc: 'Add a new task' },
+            { cmd: 'modify', aliases: ['m'], desc: 'Modify task by ID (e.g., :m 1)' },
+            { cmd: 'delete', aliases: ['d'], desc: 'Delete task by ID (e.g., :d 1)' },
+            { cmd: 'filter', aliases: ['f'], desc: 'Filter tasks (e.g., :filter status:in-progress)' },
+            { cmd: 'filter_status', aliases: [], desc: 'Filter by status' },
+            { cmd: 'filter_priority', aliases: [], desc: 'Filter by priority' },
+            { cmd: 'filter_project', aliases: [], desc: 'Filter by project' },
+            { cmd: 'sort', aliases: ['s'], desc: 'Sort tasks by priority' },
+            { cmd: 'clear', aliases: ['c'], desc: 'Clear filters, show all tasks' },
+            { cmd: 'search', aliases: ['query', '?'], desc: 'Search tasks' },
+            { cmd: 'help', aliases: ['h'], desc: 'Show help' },
+            { cmd: 'export', aliases: [], desc: 'Export tasks as JSON' },
+            { cmd: 'csv', aliases: [], desc: 'Export tasks as CSV' },
+            { cmd: 'import', aliases: [], desc: 'Import tasks from JSON' },
+            { cmd: 'trash', aliases: [], desc: 'View deleted tasks' },
+            { cmd: 'restore', aliases: [], desc: 'Restore deleted task (e.g., :restore 1)' },
+            { cmd: 'purge', aliases: [], desc: 'Permanently delete from trash' },
+            { cmd: 'privacy', aliases: [], desc: 'Show privacy information' },
+        ];
     }
 
     /**
@@ -143,6 +183,22 @@ class TaskTerminalApp {
         }
         if (this.mobileCommandBtn) {
             this.mobileCommandBtn.addEventListener('click', () => this.enterCommandMode());
+        }
+
+        // Command modal event listeners
+        if (this.commandModalClose) {
+            this.commandModalClose.addEventListener('click', () => this.closeCommandModal());
+        }
+        if (this.commandModalInput) {
+            this.commandModalInput.addEventListener('input', () => this.updateCommandSuggestions());
+            this.commandModalInput.addEventListener('keydown', (e) => this.handleCommandModalKeydown(e));
+        }
+        if (this.commandModal) {
+            this.commandModal.addEventListener('click', (e) => {
+                if (e.target === this.commandModal) {
+                    this.closeCommandModal();
+                }
+            });
         }
     }
 
@@ -2080,11 +2136,13 @@ class TaskTerminalApp {
         const popup = document.createElement('div');
         popup.className = 'modal-calendar-popup';
 
-        // Initialize with current value or today
+        // Initialize with current value or today (pre-select today if no value)
         const currentValue = hiddenInput.value;
-        let selectedDate = currentValue ? new Date(currentValue) : null;
-        let viewMonth = selectedDate ? selectedDate.getMonth() : new Date().getMonth();
-        let viewYear = selectedDate ? selectedDate.getFullYear() : new Date().getFullYear();
+        const today = new Date();
+        today.setHours(9, 0, 0, 0); // Default to 9 AM
+        let selectedDate = currentValue ? new Date(currentValue) : today;
+        let viewMonth = selectedDate.getMonth();
+        let viewYear = selectedDate.getFullYear();
 
         const renderCalendar = () => {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -2633,34 +2691,255 @@ class TaskTerminalApp {
     enterCommandMode() {
         this.navigationMode = false;
 
-        // Show command input area (vim-like)
-        this.commandInputArea.classList.remove('hidden');
+        // Show command modal instead of bottom bar
+        if (this.commandModal) {
+            this.commandModal.classList.add('active');
+            this.commandModalInput.value = '';
+            this.selectedSuggestionIndex = -1;
+            this.updateCommandSuggestions();
 
-        this.commandInput.value = ':';
-
-        // Show placeholder since value is ':'
-        this.commandPlaceholder.classList.remove('hidden');
-
-        this.commandInput.focus();
-
-        // Move cursor to end
-        setTimeout(() => {
-            this.commandInput.setSelectionRange(1, 1);
-        }, 0);
+            // Focus input after animation
+            setTimeout(() => {
+                this.commandModalInput.focus();
+            }, 50);
+        } else {
+            // Fallback to old behavior if modal not available
+            this.commandInputArea.classList.remove('hidden');
+            this.commandInput.value = ':';
+            this.commandPlaceholder.classList.remove('hidden');
+            this.commandInput.focus();
+            setTimeout(() => {
+                this.commandInput.setSelectionRange(1, 1);
+            }, 0);
+        }
     }
 
     exitCommandMode() {
         this.navigationMode = true;
 
-        // Hide command input area (vim-like)
-        this.commandInputArea.classList.add('hidden');
-
-        // Hide placeholder
-        this.commandPlaceholder.classList.add('hidden');
-
-        this.commandInput.value = '';
-        this.commandInput.blur();
+        // Close command modal
+        if (this.commandModal) {
+            this.closeCommandModal();
+        } else {
+            // Fallback to old behavior
+            this.commandInputArea.classList.add('hidden');
+            this.commandPlaceholder.classList.add('hidden');
+            this.commandInput.value = '';
+            this.commandInput.blur();
+        }
         this.commandParser.resetHistoryIndex();
+    }
+
+    /**
+     * Close command modal
+     */
+    closeCommandModal() {
+        if (this.commandModal) {
+            this.commandModal.classList.remove('active');
+            this.commandModalInput.value = '';
+            this.commandModalInput.blur();
+            this.commandSuggestions.innerHTML = '';
+            this.selectedSuggestionIndex = -1;
+            this.currentSuggestions = [];
+        }
+        this.navigationMode = true;
+    }
+
+    /**
+     * Handle command modal keydown events
+     */
+    handleCommandModalKeydown(e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            this.closeCommandModal();
+            return;
+        }
+
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            this.autocompleteCommand();
+            return;
+        }
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            this.navigateSuggestions(1);
+            return;
+        }
+
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            this.navigateSuggestions(-1);
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            this.executeCommandFromModal();
+            return;
+        }
+    }
+
+    /**
+     * Update command suggestions based on input
+     */
+    updateCommandSuggestions() {
+        const input = this.commandModalInput.value.toLowerCase().trim();
+
+        if (input === '') {
+            // Show all commands when empty
+            this.currentSuggestions = this.availableCommands.slice(0, 8);
+        } else {
+            // Filter commands that match input
+            this.currentSuggestions = this.availableCommands.filter(cmd => {
+                const matchesCmd = cmd.cmd.toLowerCase().startsWith(input);
+                const matchesAlias = cmd.aliases.some(a => a.toLowerCase().startsWith(input));
+                return matchesCmd || matchesAlias;
+            }).slice(0, 6);
+        }
+
+        this.renderSuggestions();
+    }
+
+    /**
+     * Render suggestion list
+     */
+    renderSuggestions() {
+        if (!this.commandSuggestions) return;
+
+        if (this.currentSuggestions.length === 0) {
+            this.commandSuggestions.innerHTML = '<div class="command-suggestion"><span class="suggestion-desc">No matching commands</span></div>';
+            return;
+        }
+
+        this.commandSuggestions.innerHTML = this.currentSuggestions.map((cmd, index) => {
+            const selectedClass = index === this.selectedSuggestionIndex ? 'selected' : '';
+            const aliasText = cmd.aliases.length > 0 ? ` (${cmd.aliases.join(', ')})` : '';
+            return `
+                <div class="command-suggestion ${selectedClass}" data-index="${index}" data-cmd="${cmd.cmd}">
+                    <span class="suggestion-command">:${cmd.cmd}${aliasText}</span>
+                    <span class="suggestion-desc">${cmd.desc}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Add click handlers for suggestions
+        this.commandSuggestions.querySelectorAll('.command-suggestion').forEach(el => {
+            el.addEventListener('click', () => {
+                const cmd = el.dataset.cmd;
+                this.commandModalInput.value = cmd;
+                this.commandModalInput.focus();
+                this.updateCommandSuggestions();
+            });
+        });
+    }
+
+    /**
+     * Navigate through suggestions with arrow keys
+     */
+    navigateSuggestions(direction) {
+        if (this.currentSuggestions.length === 0) return;
+
+        this.selectedSuggestionIndex += direction;
+
+        if (this.selectedSuggestionIndex < 0) {
+            this.selectedSuggestionIndex = this.currentSuggestions.length - 1;
+        } else if (this.selectedSuggestionIndex >= this.currentSuggestions.length) {
+            this.selectedSuggestionIndex = 0;
+        }
+
+        // Update input with selected suggestion
+        const selected = this.currentSuggestions[this.selectedSuggestionIndex];
+        if (selected) {
+            this.commandModalInput.value = selected.cmd;
+        }
+
+        this.renderSuggestions();
+    }
+
+    /**
+     * Autocomplete command (Tab key)
+     */
+    autocompleteCommand() {
+        if (this.currentSuggestions.length === 0) return;
+
+        // If nothing selected, select first; otherwise cycle
+        if (this.selectedSuggestionIndex < 0) {
+            this.selectedSuggestionIndex = 0;
+        } else {
+            this.selectedSuggestionIndex = (this.selectedSuggestionIndex + 1) % this.currentSuggestions.length;
+        }
+
+        const selected = this.currentSuggestions[this.selectedSuggestionIndex];
+        if (selected) {
+            this.commandModalInput.value = selected.cmd;
+        }
+
+        this.renderSuggestions();
+    }
+
+    /**
+     * Execute command from modal
+     */
+    async executeCommandFromModal() {
+        const command = ':' + this.commandModalInput.value.trim();
+
+        // Close modal first
+        this.closeCommandModal();
+
+        // Execute via existing command system
+        const result = await this.commandParser.execute(command);
+
+        if (result.success) {
+            // Handle action (same logic as executeCommand)
+            if (result.action === 'prompt_add') {
+                this.showAddTaskModal();
+            } else if (result.action === 'prompt_modify') {
+                this.showModifyTaskModal(result.data.task);
+            } else if (result.action === 'prompt_delete') {
+                this.showDeleteConfirmation(result.data.task);
+            } else if (result.action === 'prompt_bulk_delete') {
+                this.showBulkDeleteConfirmation(result.data.tasks, result.data.notFound);
+            } else if (result.action === 'filter') {
+                this.currentFilters = result.data.filters;
+                this.currentSort = null;
+                await this.render();
+                this.showMessage('Filter applied', 'success');
+            } else if (result.action === 'sort') {
+                this.currentSort = result.data.sortBy;
+                await this.render();
+                this.showMessage('Tasks sorted by priority', 'success');
+            } else if (result.action === 'clear') {
+                this.currentFilters = null;
+                this.currentSort = null;
+                await this.render();
+                this.showMessage('Filters cleared, showing all tasks', 'info');
+            } else if (result.action === 'show_help') {
+                this.showHelp();
+            } else if (result.action === 'show_privacy') {
+                this.showPrivacy();
+            } else if (result.action === 'show_search') {
+                await this.showSearch();
+            } else if (result.action === 'export_data') {
+                await this.exportData();
+            } else if (result.action === 'export_csv') {
+                await this.exportCSV();
+            } else if (result.action === 'import_data') {
+                this.importData();
+            } else if (result.action === 'show_trash') {
+                await this.showTrash();
+            } else if (result.action === 'restore_task') {
+                await this.restoreTask(result.data.taskId);
+            } else if (result.action === 'purge_task') {
+                await this.purgeTask(result.data.taskId);
+            } else if (result.action === 'purge_all') {
+                await this.purgeAll();
+            } else if (result.message) {
+                this.showMessage(result.message, 'info');
+            }
+        } else {
+            this.showMessage(result.message, 'error');
+        }
     }
 
     navigateUp() {
@@ -3201,6 +3480,163 @@ class TaskTerminalApp {
         });
 
         return escaped;
+    }
+
+    /**
+     * Initialize browser notifications
+     */
+    async initNotifications() {
+        // Check if notifications are supported
+        if (!('Notification' in window)) {
+            console.log('Browser does not support notifications');
+            return;
+        }
+
+        // Request permission if not already granted
+        if (Notification.permission === 'default') {
+            try {
+                const permission = await Notification.requestPermission();
+                this.notificationPermission = permission;
+                if (permission === 'granted') {
+                    this.showMessage('Notifications enabled for due task reminders', 'success');
+                }
+            } catch (error) {
+                console.error('Error requesting notification permission:', error);
+            }
+        } else {
+            this.notificationPermission = Notification.permission;
+        }
+
+        // Start checking for due tasks every minute
+        this.startNotificationCheck();
+
+        // Also check when page becomes visible again
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.checkDueTasks();
+            }
+        });
+    }
+
+    /**
+     * Start periodic check for due tasks
+     */
+    startNotificationCheck() {
+        // Check immediately
+        this.checkDueTasks();
+
+        // Then check every minute
+        this.notificationCheckInterval = setInterval(() => {
+            this.checkDueTasks();
+        }, 60000); // 60 seconds
+    }
+
+    /**
+     * Check for tasks that are due and send notifications
+     */
+    async checkDueTasks() {
+        if (this.notificationPermission !== 'granted') {
+            return;
+        }
+
+        try {
+            const tasks = await this.taskManager.getAllTasks();
+            const now = new Date();
+
+            for (const task of tasks) {
+                // Skip completed tasks or tasks without due dates
+                if (task.status === 'Completed' || !task.dueDate) {
+                    continue;
+                }
+
+                // Skip tasks we've already notified about
+                if (this.notifiedTaskIds.has(task.id)) {
+                    continue;
+                }
+
+                const dueDate = new Date(task.dueDate);
+                const timeDiff = dueDate.getTime() - now.getTime();
+                const minutesUntilDue = timeDiff / (1000 * 60);
+
+                // Notify if task is:
+                // - Due within the next 15 minutes
+                // - Or already overdue (within the last hour, to catch tasks that became due while app was closed)
+                if (minutesUntilDue <= 15 && minutesUntilDue > -60) {
+                    this.sendTaskNotification(task, minutesUntilDue);
+                    this.notifiedTaskIds.add(task.id);
+                }
+            }
+
+            // Clean up old notification IDs (tasks that were completed or deleted)
+            const taskIds = new Set(tasks.map(t => t.id));
+            for (const notifiedId of this.notifiedTaskIds) {
+                if (!taskIds.has(notifiedId)) {
+                    this.notifiedTaskIds.delete(notifiedId);
+                }
+            }
+        } catch (error) {
+            console.error('Error checking due tasks:', error);
+        }
+    }
+
+    /**
+     * Send a browser notification for a due task
+     */
+    sendTaskNotification(task, minutesUntilDue) {
+        let title, body;
+
+        if (minutesUntilDue < 0) {
+            // Task is overdue
+            const minutesOverdue = Math.abs(Math.round(minutesUntilDue));
+            title = 'Task Overdue';
+            body = `"${task.name}" was due ${minutesOverdue} minute${minutesOverdue !== 1 ? 's' : ''} ago`;
+        } else if (minutesUntilDue <= 5) {
+            // Due very soon
+            title = 'Task Due Now';
+            body = `"${task.name}" is due now!`;
+        } else {
+            // Due soon
+            const minutes = Math.round(minutesUntilDue);
+            title = 'Task Due Soon';
+            body = `"${task.name}" is due in ${minutes} minute${minutes !== 1 ? 's' : ''}`;
+        }
+
+        // Add priority info if high/critical
+        if (task.priority === 'Critical' || task.priority === 'High') {
+            body += ` [${task.priority} Priority]`;
+        }
+
+        try {
+            const notification = new Notification(title, {
+                body: body,
+                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%231a1d23"/><text x="50" y="60" font-family="monospace" font-size="50" fill="%230dcaf0" text-anchor="middle">S</text></svg>',
+                tag: `task-${task.id}`, // Prevent duplicate notifications
+                requireInteraction: task.priority === 'Critical', // Keep critical task notifications visible
+                silent: false
+            });
+
+            // Focus app when notification is clicked
+            notification.onclick = () => {
+                window.focus();
+                notification.close();
+
+                // Try to select the task in the list
+                const taskIndex = this.visibleTasks.findIndex(t => t.id === task.id);
+                if (taskIndex !== -1) {
+                    this.selectedTaskIndex = taskIndex;
+                    this.updateSelectedTaskUI();
+                }
+            };
+        } catch (error) {
+            console.error('Error sending notification:', error);
+        }
+    }
+
+    /**
+     * Reset notification for a specific task (call when task due date is modified)
+     */
+    resetTaskNotification(taskId) {
+        this.notifiedTaskIds.delete(taskId);
     }
 }
 

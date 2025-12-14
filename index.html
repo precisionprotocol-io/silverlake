@@ -85,6 +85,34 @@
             <span class="fab-icon">+</span>
         </button>
 
+        <!-- Command Modal -->
+        <div class="command-modal" id="commandModal">
+            <div class="command-modal-content">
+                <div class="command-modal-header">
+                    <span class="command-modal-title">Enter Command</span>
+                    <button class="command-modal-close" id="commandModalClose">×</button>
+                </div>
+                <div class="command-modal-body">
+                    <div class="command-input-wrapper">
+                        <span class="command-prefix">:</span>
+                        <input
+                            type="text"
+                            id="commandModalInput"
+                            class="command-modal-input"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="Type command (Tab to autocomplete)"
+                        />
+                    </div>
+                    <div class="command-suggestions" id="commandSuggestions"></div>
+                </div>
+                <div class="command-modal-hint">
+                    <span class="hint-desktop">Tab: autocomplete • Enter: execute • Esc: close</span>
+                    <span class="hint-mobile">Tap suggestion to select • Enter to execute</span>
+                </div>
+            </div>
+        </div>
+
         <!-- Modal for interactive prompts -->
         <div class="modal" id="modal">
             <div class="modal-content">
