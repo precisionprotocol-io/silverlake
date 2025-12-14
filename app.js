@@ -58,6 +58,13 @@ class TaskTerminalApp {
         this.modalBody = document.getElementById('modalBody');
         this.modalSubmit = document.getElementById('modalSubmit');
         this.modalCancel = document.getElementById('modalCancel');
+
+        // Mobile elements
+        this.fabAddTask = document.getElementById('fabAddTask');
+        this.mobileModifyBtn = document.getElementById('mobileModifyBtn');
+        this.mobileCompleteBtn = document.getElementById('mobileCompleteBtn');
+        this.mobileDeleteBtn = document.getElementById('mobileDeleteBtn');
+        this.mobileCommandBtn = document.getElementById('mobileCommandBtn');
     }
 
     /**
@@ -120,6 +127,23 @@ class TaskTerminalApp {
         });
 
         // No automatic focus - let navigation mode handle it
+
+        // Mobile FAB and action bar
+        if (this.fabAddTask) {
+            this.fabAddTask.addEventListener('click', () => this.showAddTaskModal());
+        }
+        if (this.mobileModifyBtn) {
+            this.mobileModifyBtn.addEventListener('click', () => this.modifySelectedTask());
+        }
+        if (this.mobileCompleteBtn) {
+            this.mobileCompleteBtn.addEventListener('click', () => this.completeSelectedTask());
+        }
+        if (this.mobileDeleteBtn) {
+            this.mobileDeleteBtn.addEventListener('click', () => this.deleteSelectedTask());
+        }
+        if (this.mobileCommandBtn) {
+            this.mobileCommandBtn.addEventListener('click', () => this.enterCommandMode());
+        }
     }
 
     /**
@@ -1628,14 +1652,14 @@ class TaskTerminalApp {
                 <table class="task-table">
                     <thead>
                         <tr>
-                            <th>ID</th>
-                            <th>Name</th>
-                            <th>Due Date</th>
-                            <th>Status</th>
-                            <th>Project</th>
-                            <th>Priority</th>
-                            <th>Parent</th>
-                            <th>Notes</th>
+                            <th class="col-id">ID</th>
+                            <th class="col-name">Name</th>
+                            <th class="col-due">Due Date</th>
+                            <th class="col-status">Status</th>
+                            <th class="col-project">Project</th>
+                            <th class="col-priority">Priority</th>
+                            <th class="col-parent">Parent</th>
+                            <th class="col-notes">Notes</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1714,20 +1738,20 @@ class TaskTerminalApp {
 
                 tableHtml += `
                     <tr class="${rowClass}" data-task-id="${task.id}">
-                        <td>${task.id}</td>
-                        <td><div class="${nameClass}">${foldToggle}${this.escapeHtml(task.name)}</div></td>
-                        <td class="due-date-cell ${dueDateClass}" data-task-id="${task.id}" title="Click to change due date">
+                        <td class="col-id">${task.id}</td>
+                        <td class="col-name"><div class="${nameClass}">${foldToggle}${this.escapeHtml(task.name)}</div></td>
+                        <td class="col-due due-date-cell ${dueDateClass}" data-task-id="${task.id}" title="Click to change due date">
                             ${this.taskManager.formatDate(task.dueDate)}
                         </td>
-                        <td class="status-cell" data-task-id="${task.id}">
+                        <td class="col-status status-cell" data-task-id="${task.id}">
                             <span class="${statusClass}">${task.status}</span>
                         </td>
-                        <td>${this.escapeHtml(task.project || '-')}</td>
-                        <td class="priority-cell" data-task-id="${task.id}">
+                        <td class="col-project">${this.escapeHtml(task.project || '-')}</td>
+                        <td class="col-priority priority-cell" data-task-id="${task.id}">
                             <span class="${priorityClass}">${priorityText}</span>
                         </td>
-                        <td>${task.parentTaskId !== null ? task.parentTaskId : '-'}</td>
-                        <td class="notes-cell" data-task-id="${task.id}" title="Click to view notes">${notesText}</td>
+                        <td class="col-parent">${task.parentTaskId !== null ? task.parentTaskId : '-'}</td>
+                        <td class="col-notes notes-cell" data-task-id="${task.id}" title="Click to view notes">${notesText}</td>
                     </tr>
                 `;
             });
@@ -1777,17 +1801,27 @@ class TaskTerminalApp {
             this._foldToggleHandlerAttached = true;
         }
 
-        // Click on row to modify task
+        // Click on row to select and optionally modify task
         const rows = this.taskTable.querySelectorAll('tbody tr');
-        rows.forEach(row => {
+        rows.forEach((row, index) => {
             row.addEventListener('click', async (e) => {
-                // Don't trigger if clicking on status, priority, notes, due date cell, or fold toggle
+                // Always select the row first
+                this.selectedTaskIndex = index;
+                this.updateSelectedTaskUI();
+
+                // Don't open modify dialog if clicking on status, priority, notes, due date cell, or fold toggle
                 if (e.target.closest('.status-cell') ||
                     e.target.closest('.priority-cell') ||
                     e.target.closest('.notes-cell') ||
                     e.target.closest('.due-date-cell') ||
                     e.target.closest('.fold-toggle')) {
                     return;
+                }
+
+                // On mobile (touch device or narrow screen), just select - use action bar for actions
+                const isMobile = window.matchMedia('(max-width: 768px)').matches || 'ontouchstart' in window;
+                if (isMobile) {
+                    return; // Just select, don't open modify modal
                 }
 
                 const taskId = parseInt(row.dataset.taskId);

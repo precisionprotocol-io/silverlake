@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Silverlake - Command-Line Task Manager</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%231a1d23'/><rect x='5' y='5' width='90' height='90' fill='%230d0f12' stroke='%230dcaf0' stroke-width='2'/><text x='20' y='45' font-family='monospace' font-size='30' fill='%230dcaf0'>%3E</text><rect x='40' y='28' width='15' height='3' fill='%2300ff88'/><rect x='40' y='36' width='25' height='3' fill='%23ffa502'/><rect x='40' y='44' width='35' height='3' fill='%230dcaf0'/><rect x='20' y='60' width='50' height='3' fill='%23555'/></svg>" type="image/svg+xml">
     <link rel="stylesheet" href="styles.css">
@@ -57,6 +57,33 @@
             <span class="shortcut-separator">|</span>
             <span class="shortcut">: Commands</span>
         </div>
+
+        <!-- Mobile Action Bar -->
+        <div class="mobile-action-bar" id="mobileActionBar">
+            <div class="mobile-action-bar-inner">
+                <button class="mobile-action-btn" id="mobileModifyBtn" title="Modify">
+                    <span class="mobile-action-btn-icon">✎</span>
+                    <span>Modify</span>
+                </button>
+                <button class="mobile-action-btn" id="mobileCompleteBtn" title="Complete">
+                    <span class="mobile-action-btn-icon">✓</span>
+                    <span>Done</span>
+                </button>
+                <button class="mobile-action-btn" id="mobileDeleteBtn" title="Delete">
+                    <span class="mobile-action-btn-icon">✕</span>
+                    <span>Delete</span>
+                </button>
+                <button class="mobile-action-btn" id="mobileCommandBtn" title="Commands">
+                    <span class="mobile-action-btn-icon">:</span>
+                    <span>Cmds</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Floating Action Button for mobile -->
+        <button class="fab" id="fabAddTask" title="Add Task (A)">
+            <span class="fab-icon">+</span>
+        </button>
 
         <!-- Modal for interactive prompts -->
         <div class="modal" id="modal">

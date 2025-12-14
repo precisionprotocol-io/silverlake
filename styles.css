@@ -1062,12 +1062,103 @@ body {
     color: #ffffff;
 }
 
+/* Floating Action Button */
+.fab {
+    display: none; /* Hidden on desktop by default */
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--status-in-progress);
+    border: none;
+    color: #000000;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(13, 202, 240, 0.4);
+    z-index: 900;
+    transition: all 0.2s ease;
+    align-items: center;
+    justify-content: center;
+}
+
+.fab:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(13, 202, 240, 0.6);
+}
+
+.fab:active {
+    transform: scale(0.95);
+}
+
+.fab-icon {
+    font-weight: 700;
+    line-height: 1;
+}
+
+/* Mobile Action Bar */
+.mobile-action-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-secondary);
+    border-top: 2px solid var(--border-color);
+    padding: 8px 10px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 800;
+}
+
+.mobile-action-bar-inner {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.mobile-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.2s;
+    min-width: 50px;
+}
+
+.mobile-action-btn:hover,
+.mobile-action-btn:active {
+    background-color: var(--bg-primary);
+    color: var(--status-in-progress);
+}
+
+.mobile-action-btn-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .terminal-header {
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
+        padding: 12px 15px;
+    }
+
+    .terminal-display {
+        padding: 10px;
+        padding-bottom: 80px; /* Space for mobile action bar */
     }
 
     .task-table {
@@ -1076,11 +1167,107 @@ body {
 
     .task-table th,
     .task-table td {
-        padding: 8px 10px;
+        padding: 12px 8px; /* Taller rows for touch */
+    }
+
+    /* Hide less critical columns on tablet */
+    .task-table .col-project,
+    .task-table .col-parent {
+        display: none;
     }
 
     .shortcut-footer {
+        display: none; /* Hide keyboard shortcuts on mobile */
+    }
+
+    .mobile-action-bar {
+        display: block;
+    }
+
+    .fab {
+        display: flex;
+        bottom: calc(90px + env(safe-area-inset-bottom));
+    }
+
+    /* Larger touch targets for status/priority badges */
+    .status-badge,
+    .priority-badge {
+        padding: 6px 10px;
         font-size: 10px;
+    }
+
+    /* Modal adjustments */
+    .modal-content {
+        width: 95%;
+        max-height: 90vh;
+        margin: 10px;
+    }
+
+    .modal-body {
+        padding: 15px;
+    }
+
+    .form-field {
+        margin-bottom: 15px;
+    }
+}
+
+/* Small mobile screens */
+@media (max-width: 480px) {
+    .terminal-title {
+        font-size: 16px;
+    }
+
+    .terminal-subtitle {
+        font-size: 11px;
+    }
+
+    .terminal-display {
+        padding: 8px;
+    }
+
+    .task-table {
+        font-size: 11px;
+    }
+
+    .task-table th,
+    .task-table td {
+        padding: 10px 6px;
+    }
+
+    /* Hide more columns on small screens */
+    .task-table .col-notes,
+    .task-table .col-due {
+        display: none;
+    }
+
+    /* Compact status badges */
+    .status-badge,
+    .priority-badge {
+        padding: 4px 6px;
+        font-size: 9px;
+    }
+
+    .fab {
+        width: 50px;
+        height: 50px;
+        font-size: 24px;
+        bottom: calc(85px + env(safe-area-inset-bottom));
+        right: 15px;
+    }
+
+    /* Adjust task name indentation for subtasks */
+    .task-name.subtask {
+        padding-left: 12px;
+    }
+
+    .task-name.grandchild {
+        padding-left: 24px;
+    }
+
+    .fold-toggle {
+        width: 14px;
+        font-size: 9px;
     }
 }
 
